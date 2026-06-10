@@ -1,5 +1,5 @@
-import {useEffect, useId, useRef, useState} from 'react'
 import mermaid from 'mermaid'
+import {useEffect, useId, useRef, useState} from 'react'
 
 // Mermaid is initialised inside the render effect (not at module load) so its
 // base theme can follow Studio's colour scheme: light vs dark drives the
@@ -95,6 +95,7 @@ export function MermaidView({
   return (
     <>
       <div ref={measureRef} aria-hidden="true" style={MEASURE_STYLE} />
+      {/* eslint-disable-next-line no-nested-ternary -- idiomatic error / loading / loaded render */}
       {error ? (
         <div role="alert" style={{whiteSpace: 'pre-wrap', fontFamily: 'monospace'}}>
           Failed to render diagram:{'\n'}

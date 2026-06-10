@@ -47,7 +47,7 @@ The next phase is the **"adopt at extraction" column** from ADR 0007: carve the 
 
 ## Gotchas / lessons baked in (carry forward)
 
-- **Dev-loop alias.** Vite (sanity dev/build) ignores the package `source` export condition → it loads built `dist/`, not `src/`. A *global* `source` condition can't be used because `@sanity/ui` also ships one (would load its untranspiled source). In ux-methods we used a **scoped Vite alias**. Figure out the standalone-studio equivalent (step 2 above).
+- **Dev-loop alias.** Vite (sanity dev/build) ignores the package `source` export condition → it loads built `dist/`, not `src/`. A _global_ `source` condition can't be used because `@sanity/ui` also ships one (would load its untranspiled source). In ux-methods we used a **scoped Vite alias**. Figure out the standalone-studio equivalent (step 2 above).
 - **Commit messages: use `git commit -F <file>`, not `-m`.** Backticks in `-m` get eaten by zsh command substitution (we mangled a commit this session and had to amend).
 - **Test setup specifics** (already in the plugin): jsdom needs `window.matchMedia` stubbed (for `@sanity/ui` responsive hooks). If you add tests that mount `react-zoom-pan-pinch`, you'll also need a **`ResizeObserver` stub** (jsdom lacks it) — we avoided it by keeping pan/zoom out of unit tests. `@testing-library/react` auto-cleanup does NOT run with Vitest `globals: false`, so component test files call `afterEach(cleanup)`. Component tests use `src/test/renderWithUi.tsx` (ThemeProvider + LayerProvider + ToastProvider), excluded from the dist build.
 - **`@sanity/ui` v3:** spacing prop is `gap` (not `space`); theme via `buildTheme()` from `@sanity/ui/theme`; resolved scheme via `useRootTheme().scheme`.
@@ -64,4 +64,4 @@ The next phase is the **"adopt at extraction" column** from ADR 0007: carve the 
 
 ## Practical first move
 
-After reading the docs and getting Andy's naming/publishing decisions: resolve the **standalone dev-loop** question (step 2) on a scratch clone *before* committing to the carve-out, then do the `git filter-repo` extraction, then layer the shell in small reviewable steps (dev studio → eslint/format → commitlint/husky → semantic-release → CI → install-test), gating each. Update best-practices §8 as you go.
+After reading the docs and getting Andy's naming/publishing decisions: resolve the **standalone dev-loop** question (step 2) on a scratch clone _before_ committing to the carve-out, then do the `git filter-repo` extraction, then layer the shell in small reviewable steps (dev studio → eslint/format → commitlint/husky → semantic-release → CI → install-test), gating each. Update best-practices §8 as you go.

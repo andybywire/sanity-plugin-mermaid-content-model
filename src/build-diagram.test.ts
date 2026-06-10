@@ -1,5 +1,5 @@
-import {describe, it, expect} from 'vitest'
 import type {Schema} from 'sanity'
+import {describe, expect, it} from 'vitest'
 
 import {buildDiagram, modelFor, renderDiagram} from './build-diagram'
 import {walk} from './walker'
@@ -57,7 +57,9 @@ describe('renderDiagram', () => {
 describe('buildDiagram', () => {
   it('renders a Mermaid classDiagram string for a valid schema', () => {
     const result = buildDiagram(
-      fakeSchema([{name: 'discipline', type: 'document', fields: [{name: 'title', type: 'string'}]}]),
+      fakeSchema([
+        {name: 'discipline', type: 'document', fields: [{name: 'title', type: 'string'}]},
+      ]),
     )
     expect(result.mermaid).toContain('classDiagram')
     expect(result.mermaid).toContain('class Discipline')

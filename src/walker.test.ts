@@ -1,4 +1,5 @@
-import {describe, it, expect} from 'vitest'
+import {describe, expect, it} from 'vitest'
+
 import {walk} from './walker'
 
 describe('walker', () => {
@@ -48,9 +49,7 @@ describe('walker', () => {
       {
         name: 'discipline',
         type: 'document',
-        fields: [
-          {name: 'title', type: 'string', validation: (R: any) => R.required()},
-        ],
+        fields: [{name: 'title', type: 'string', validation: (R: any) => R.required()}],
       },
     ]
     const model = walk(types)
@@ -317,9 +316,7 @@ describe('walker', () => {
       {
         name: 'method',
         type: 'document',
-        fields: [
-          {name: 'disciplines', type: 'array', of: [{type: 'referencedDiscipline'}]},
-        ],
+        fields: [{name: 'disciplines', type: 'array', of: [{type: 'referencedDiscipline'}]}],
       },
       {name: 'referencedDiscipline', type: 'reference', to: [{type: 'discipline'}]},
       {name: 'discipline', type: 'document', fields: []},
@@ -351,9 +348,7 @@ describe('walker', () => {
       {
         name: 'doc',
         type: 'document',
-        fields: [
-          {name: 'title', type: 'string', validation: (R: any) => R.custom(() => true)},
-        ],
+        fields: [{name: 'title', type: 'string', validation: (R: any) => R.custom(() => true)}],
       },
     ]
     const model = walk(types)
@@ -478,18 +473,14 @@ describe('walker', () => {
   })
 
   it('emits a `type: "image"` top-level type as an object-stereotype class', () => {
-    const types = [
-      {name: 'heroImage', type: 'image', fields: [{name: 'caption', type: 'string'}]},
-    ]
+    const types = [{name: 'heroImage', type: 'image', fields: [{name: 'caption', type: 'string'}]}]
     const model = walk(types)
     const cls = model.classes.find((c) => c.name === 'HeroImage')
     expect(cls?.stereotype).toBe('object')
   })
 
   it('synthesises an `asset: url` field on image-like classes', () => {
-    const types = [
-      {name: 'heroImage', type: 'image', fields: [{name: 'caption', type: 'string'}]},
-    ]
+    const types = [{name: 'heroImage', type: 'image', fields: [{name: 'caption', type: 'string'}]}]
     const model = walk(types)
     const cls = model.classes.find((c) => c.name === 'HeroImage')
     const asset = cls?.fields.find((f) => f.name === 'asset')
@@ -637,9 +628,7 @@ describe('walker', () => {
       {
         name: 'method',
         type: 'document',
-        fields: [
-          {name: 'metadata', type: 'object', fields: [{name: 'createdAt', type: 'string'}]},
-        ],
+        fields: [{name: 'metadata', type: 'object', fields: [{name: 'createdAt', type: 'string'}]}],
       },
       {
         name: 'discipline',
@@ -683,9 +672,7 @@ describe('walker', () => {
       {
         name: 'method',
         type: 'document',
-        fields: [
-          {name: 'preview', type: 'reference', to: [{type: 'sanity.imageAsset'}]},
-        ],
+        fields: [{name: 'preview', type: 'reference', to: [{type: 'sanity.imageAsset'}]}],
       },
     ]
     const model = walk(types)
@@ -697,9 +684,7 @@ describe('walker', () => {
       {
         name: 'method',
         type: 'document',
-        fields: [
-          {name: 'preview', type: 'reference', to: [{type: 'sanity.imageAsset'}]},
-        ],
+        fields: [{name: 'preview', type: 'reference', to: [{type: 'sanity.imageAsset'}]}],
       },
     ]
     const model = walk(types)
@@ -828,9 +813,7 @@ describe('walker', () => {
   })
 
   it('characterises a date field as primitive datetime', () => {
-    const types = [
-      {name: 'doc', type: 'document', fields: [{name: 'when', type: 'date'}]},
-    ]
+    const types = [{name: 'doc', type: 'document', fields: [{name: 'when', type: 'date'}]}]
     const model = walk(types)
     expect(model.classes[0]?.fields[0]?.char).toEqual({
       kind: 'primitive',
@@ -840,9 +823,7 @@ describe('walker', () => {
   })
 
   it('characterises a datetime field as primitive datetime', () => {
-    const types = [
-      {name: 'doc', type: 'document', fields: [{name: 'when', type: 'datetime'}]},
-    ]
+    const types = [{name: 'doc', type: 'document', fields: [{name: 'when', type: 'datetime'}]}]
     const model = walk(types)
     expect(model.classes[0]?.fields[0]?.char).toEqual({
       kind: 'primitive',
@@ -852,9 +833,7 @@ describe('walker', () => {
   })
 
   it('characterises a text field as primitive string', () => {
-    const types = [
-      {name: 'doc', type: 'document', fields: [{name: 'body', type: 'text'}]},
-    ]
+    const types = [{name: 'doc', type: 'document', fields: [{name: 'body', type: 'text'}]}]
     const model = walk(types)
     expect(model.classes[0]?.fields[0]?.char).toEqual({
       kind: 'primitive',
@@ -864,9 +843,7 @@ describe('walker', () => {
   })
 
   it('characterises an email field as primitive string', () => {
-    const types = [
-      {name: 'doc', type: 'document', fields: [{name: 'contact', type: 'email'}]},
-    ]
+    const types = [{name: 'doc', type: 'document', fields: [{name: 'contact', type: 'email'}]}]
     const model = walk(types)
     expect(model.classes[0]?.fields[0]?.char).toEqual({
       kind: 'primitive',
@@ -876,9 +853,7 @@ describe('walker', () => {
   })
 
   it('characterises a geopoint field as primitive geopoint', () => {
-    const types = [
-      {name: 'doc', type: 'document', fields: [{name: 'location', type: 'geopoint'}]},
-    ]
+    const types = [{name: 'doc', type: 'document', fields: [{name: 'location', type: 'geopoint'}]}]
     const model = walk(types)
     expect(model.classes[0]?.fields[0]?.char).toEqual({
       kind: 'primitive',
@@ -892,9 +867,7 @@ describe('walker', () => {
       {
         name: 'method',
         type: 'document',
-        fields: [
-          {name: 'shared', type: 'crossDatasetReference', to: [{type: 'discipline'}]},
-        ],
+        fields: [{name: 'shared', type: 'crossDatasetReference', to: [{type: 'discipline'}]}],
       },
       {name: 'discipline', type: 'document', fields: []},
     ]
@@ -919,9 +892,7 @@ describe('walker', () => {
       {
         name: 'method',
         type: 'document',
-        fields: [
-          {name: 'external', type: 'globalDocumentReference', to: [{type: 'discipline'}]},
-        ],
+        fields: [{name: 'external', type: 'globalDocumentReference', to: [{type: 'discipline'}]}],
       },
       {name: 'discipline', type: 'document', fields: []},
     ]
@@ -1253,9 +1224,7 @@ describe('walker', () => {
       {
         name: 'method',
         type: 'document',
-        fields: [
-          {name: 'notes', type: 'array', of: [{type: 'block'}, {type: 'bodyImage'}]},
-        ],
+        fields: [{name: 'notes', type: 'array', of: [{type: 'block'}, {type: 'bodyImage'}]}],
       },
       {name: 'bodyImage', type: 'object', fields: []},
     ]
@@ -1271,9 +1240,7 @@ describe('walker', () => {
       {
         name: 'method',
         type: 'document',
-        fields: [
-          {name: 'overview', type: 'array', of: [{type: 'block'}]},
-        ],
+        fields: [{name: 'overview', type: 'array', of: [{type: 'block'}]}],
       },
     ]
     const model = walk(types)

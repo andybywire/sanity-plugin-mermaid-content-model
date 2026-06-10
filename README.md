@@ -33,12 +33,12 @@ Where the CLI loads schema types from `studio/schemaTypes/index.ts` via `tsx`, t
 
 ## Scripts
 
-| Script | Purpose |
-| --- | --- |
-| `pnpm test` | Run the Vitest suite once. |
-| `pnpm test:watch` | Watch mode. |
-| `pnpm typecheck` | `tsc --noEmit` against `src` + configs. |
-| `pnpm build` | Build `dist/` with `@sanity/pkg-utils`. |
+| Script            | Purpose                                 |
+| ----------------- | --------------------------------------- |
+| `pnpm test`       | Run the Vitest suite once.              |
+| `pnpm test:watch` | Watch mode.                             |
+| `pnpm typecheck`  | `tsc --noEmit` against `src` + configs. |
+| `pnpm build`      | Build `dist/` with `@sanity/pkg-utils`. |
 
 ## Development
 

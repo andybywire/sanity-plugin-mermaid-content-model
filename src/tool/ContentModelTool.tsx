@@ -1,21 +1,21 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
-import {useSchema} from 'sanity'
 import {Box, Card, Flex, Stack, Text, useRootTheme} from '@sanity/ui'
-import {TransformWrapper, TransformComponent, type ReactZoomPanPinchRef} from 'react-zoom-pan-pinch'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
+import {type ReactZoomPanPinchRef, TransformComponent, TransformWrapper} from 'react-zoom-pan-pinch'
+import {useSchema} from 'sanity'
 
 import {modelFor, renderDiagram} from '../build-diagram'
-import {DARK_THEME, LIGHT_THEME} from '../emit-mermaid'
 import {
   defaultSelection,
   elementGroups,
+  type ElementsSelection,
   orphanObjects,
   resolveElements,
-  type ElementsSelection,
 } from '../elements'
-import {MermaidView} from './MermaidView'
+import {DARK_THEME, LIGHT_THEME} from '../emit-mermaid'
 import {CopyCodeButton} from './CopyCodeButton'
 import {CopyPngButton} from './CopyPngButton'
 import {ElementsMenu} from './ElementsMenu'
+import {MermaidView} from './MermaidView'
 import {ZoomControls} from './ZoomControls'
 
 // Pan/zoom scale bounds. min low enough to fit very large diagrams; max high
@@ -75,7 +75,7 @@ export function ContentModelTool(): React.JSX.Element {
   // laid out). Subsequent re-renders (filtering, theme) keep the user's view;
   // Reset re-fits on demand.
   useEffect(() => {
-    if (!renderedSvg || hasFitRef.current) return
+    if (!renderedSvg || hasFitRef.current) return undefined
     hasFitRef.current = true
     const id = requestAnimationFrame(fitView)
     return () => cancelAnimationFrame(id)
@@ -138,7 +138,11 @@ export function ContentModelTool(): React.JSX.Element {
               </Box>
             )}
             {/* Bounded, overflow-hidden viewport: pan/zoom operates within it. */}
-            <Box ref={viewportRef} flex={1} style={{position: 'relative', overflow: 'hidden', minHeight: 0}}>
+            <Box
+              ref={viewportRef}
+              flex={1}
+              style={{position: 'relative', overflow: 'hidden', minHeight: 0}}
+            >
               <TransformWrapper ref={transformRef} minScale={MIN_SCALE} maxScale={MAX_SCALE}>
                 {({zoomIn, zoomOut}) => (
                   <>

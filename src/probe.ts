@@ -53,6 +53,7 @@ function createProbeRule(calls: Array<{method: string; args: unknown[]}>) {
       if (typeof prop !== 'string') return undefined
       return (...args: unknown[]) => {
         calls.push({method: prop, args})
+        // eslint-disable-next-line no-use-before-define -- referenced only inside this deferred closure, which runs after `proxy` is assigned below
         return proxy
       }
     },
@@ -93,10 +94,7 @@ export function probe(validation: (Rule: unknown) => unknown): ProbeResult {
   return result
 }
 
-function lastCallArg(
-  calls: Array<{method: string; args: unknown[]}>,
-  method: string,
-): unknown {
+function lastCallArg(calls: Array<{method: string; args: unknown[]}>, method: string): unknown {
   for (let i = calls.length - 1; i >= 0; i--) {
     if (calls[i]?.method === method) return calls[i]?.args[0]
   }

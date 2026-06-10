@@ -1,6 +1,6 @@
-import {useCallback} from 'react'
-import {Button, useToast} from '@sanity/ui'
 import {CopyIcon} from '@sanity/icons'
+import {Button, useToast} from '@sanity/ui'
+import {useCallback} from 'react'
 
 export interface CopyCodeButtonProps {
   /** The Mermaid source to copy; `null` when there is no diagram (button disabled). */

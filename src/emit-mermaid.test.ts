@@ -1,4 +1,5 @@
-import {describe, it, expect} from 'vitest'
+import {describe, expect, it} from 'vitest'
+
 import {
   DARK_THEME,
   emit,
@@ -8,8 +9,8 @@ import {
   renderEdge,
   renderField,
 } from './emit-mermaid'
-import {walk} from './walker'
 import type {CanonicalField, CanonicalModel} from './walker'
+import {walk} from './walker'
 
 describe('renderCardinality', () => {
   it('renders a required scalar as [1]', () => {

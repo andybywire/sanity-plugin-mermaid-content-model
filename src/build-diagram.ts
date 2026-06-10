@@ -10,10 +10,10 @@
 
 import type {Schema} from 'sanity'
 
-import {readSchemaSource} from './schema-adapter'
-import {walk, type CanonicalModel} from './walker'
+import {type DiagramTheme, emit, LIGHT_THEME} from './emit-mermaid'
 import {filterModel} from './filter-model'
-import {emit, LIGHT_THEME, type DiagramTheme} from './emit-mermaid'
+import {readSchemaSource} from './schema-adapter'
+import {type CanonicalModel, walk} from './walker'
 
 const NOTHING_HIDDEN: ReadonlySet<string> = new Set()
 

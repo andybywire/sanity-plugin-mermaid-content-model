@@ -1,5 +1,5 @@
-import {definePlugin} from 'sanity'
 import {SchemaIcon} from '@sanity/icons'
+import {definePlugin} from 'sanity'
 
 import {ContentModelTool} from './tool/ContentModelTool'
 
@@ -28,20 +28,20 @@ export const mermaidContentModel = definePlugin(() => ({
   ],
 }))
 
-export {walk} from './walker'
+export type {DiagramResult} from './build-diagram'
+export {buildDiagram} from './build-diagram'
 export {emit} from './emit-mermaid'
 export {probe} from './probe'
-export {readSchemaSource} from './schema-adapter'
 export type {SchemaSource} from './schema-adapter'
-export {buildDiagram} from './build-diagram'
-export type {DiagramResult} from './build-diagram'
+export {readSchemaSource} from './schema-adapter'
 export type {
-  CanonicalModel,
   CanonicalClass,
   CanonicalField,
+  CanonicalModel,
+  Cardinality,
+  ClassOrigin,
   Edge,
   FieldChar,
-  Cardinality,
   Stereotype,
-  ClassOrigin,
 } from './walker'
+export {walk} from './walker'

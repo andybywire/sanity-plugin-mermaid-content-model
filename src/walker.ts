@@ -498,14 +498,11 @@ function fieldValidation(field: RawField, array: boolean): FieldValidation {
 
   // For non-arrays, Rule.min/Rule.max are value constraints (string length,
   // numeric range), not cardinality. They count toward the custom marker.
-  const nonArrayValueConstraint =
-    result?.min !== undefined || result?.max !== undefined
+  const nonArrayValueConstraint = result?.min !== undefined || result?.max !== undefined
   return {
     cardinality: {min: required ? 1 : 0, max: 1},
     hasCustomMarker:
-      result?.hasCustom === true ||
-      result?.hasOtherConstraints === true ||
-      nonArrayValueConstraint,
+      result?.hasCustom === true || result?.hasOtherConstraints === true || nonArrayValueConstraint,
   }
 }
 
@@ -549,9 +546,7 @@ interface WalkContext {
  * raw fields plus whether the field is an array, or null if no inline
  * object is present.
  */
-function inlineObjectFor(
-  field: RawField,
-): {innerFields: RawField[]; array: boolean} | null {
+function inlineObjectFor(field: RawField): {innerFields: RawField[]; array: boolean} | null {
   if (field.type === 'object' && field.fields) {
     return {innerFields: field.fields, array: false}
   }
@@ -610,10 +605,7 @@ function maybeEmitCollisionWarning(fieldName: string, ctx: WalkContext): void {
  * the schema. Used by `resolveInlineClassName` to decide which inlines
  * need parent-prefixing.
  */
-function collectInlineCounts(
-  rawFields: RawField[] | undefined,
-  out: Map<string, number>,
-): void {
+function collectInlineCounts(rawFields: RawField[] | undefined, out: Map<string, number>): void {
   if (!rawFields) return
   for (const f of rawFields) {
     if (SKIP_FIELD_NAMES.has(f.name)) continue
@@ -662,11 +654,7 @@ function walkFields(
       // emit an anonymous class with synthetic `+block: PortableText [0..*]`
       // plus a field per structural embed. Same inline-naming policy as
       // inline objects (bare pascalCase unless colliding).
-      if (
-        f.type === 'array' &&
-        f.of &&
-        structuralPortableTextEmbeds(f.of, ctx.typeMap)
-      ) {
+      if (f.type === 'array' && f.of && structuralPortableTextEmbeds(f.of, ctx.typeMap)) {
         const className = resolveInlineClassName(f.name, sourceClassName, ctx)
         maybeEmitCollisionWarning(f.name, ctx)
         ctx.classes.push({
