@@ -3,3 +3,4 @@ dist
 coverage
 .sanity
 *.tgz
+tmp-studio-install-test
