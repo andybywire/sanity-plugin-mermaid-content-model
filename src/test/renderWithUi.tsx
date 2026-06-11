@@ -1,7 +1,7 @@
-import type {ReactElement, ReactNode} from 'react'
-import {render, type RenderResult} from '@testing-library/react'
 import {LayerProvider, ThemeProvider, ToastProvider} from '@sanity/ui'
 import {buildTheme} from '@sanity/ui/theme'
+import {render, type RenderResult} from '@testing-library/react'
+import type {ReactElement, ReactNode} from 'react'
 
 const theme = buildTheme()
 

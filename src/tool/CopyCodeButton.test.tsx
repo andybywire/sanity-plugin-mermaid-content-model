@@ -1,5 +1,5 @@
-import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
-import {screen, fireEvent, waitFor, cleanup} from '@testing-library/react'
+import {cleanup, fireEvent, screen, waitFor} from '@testing-library/react'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 import {renderWithUi} from '../test/renderWithUi'
 import {CopyCodeButton} from './CopyCodeButton'

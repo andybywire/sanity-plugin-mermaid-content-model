@@ -1,6 +1,7 @@
-import {describe, it, expect} from 'vitest'
-import type {CanonicalModel} from './walker'
+import {describe, expect, it} from 'vitest'
+
 import {filterModel} from './filter-model'
+import type {CanonicalModel} from './walker'
 
 function sampleModel(): CanonicalModel {
   return {

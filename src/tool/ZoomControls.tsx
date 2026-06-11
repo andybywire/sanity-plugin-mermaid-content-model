@@ -1,5 +1,5 @@
-import {Button, Card, Flex} from '@sanity/ui'
 import {AddIcon, RemoveIcon, ResetIcon} from '@sanity/icons'
+import {Button, Card, Flex} from '@sanity/ui'
 
 export interface ZoomControlsProps {
   onZoomIn: () => void

@@ -1,8 +1,18 @@
-import {useState} from 'react'
-import {Box, Button, Flex, Popover, Stack, Switch, Text, Tooltip, useClickOutsideEvent} from '@sanity/ui'
 import {ControlsIcon} from '@sanity/icons'
+import {
+  Box,
+  Button,
+  Flex,
+  Popover,
+  Stack,
+  Switch,
+  Text,
+  Tooltip,
+  useClickOutsideEvent,
+} from '@sanity/ui'
+import {useState} from 'react'
 
-import type {ElementsSelection, ElementGroups} from '../elements'
+import type {ElementGroups, ElementsSelection} from '../elements'
 
 // ControlsIcon rotated 90° so its sliders read vertically, fitting this layout.
 // @sanity/icons spread props onto their <svg>, so a CSS transform rotates the
@@ -106,7 +116,10 @@ export function ElementsMenu({
         {groups.objects.length > 0 && (
           <Stack gap={3}>
             <GroupHeader label="Objects" names={groups.objects} onSetAll={setGroupVisibility} />
-            <HideOrphansButton orphans={orphans} onHide={() => setGroupVisibility(orphans, false)} />
+            <HideOrphansButton
+              orphans={orphans}
+              onHide={() => setGroupVisibility(orphans, false)}
+            />
             {groups.objects.map((name) => (
               <CheckRow
                 key={name}
@@ -231,7 +244,7 @@ function HideOrphansButton({
       text="Hide Orphan Objects"
       fontSize={1}
       padding={2}
-      width='fill'
+      width="fill"
       disabled={disabled}
       onClick={onHide}
     />

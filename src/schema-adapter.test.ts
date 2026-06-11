@@ -1,5 +1,5 @@
-import {describe, it, expect} from 'vitest'
 import type {Schema} from 'sanity'
+import {describe, expect, it} from 'vitest'
 
 import {readSchemaSource} from './schema-adapter'
 import {walk} from './walker'

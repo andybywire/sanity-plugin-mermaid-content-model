@@ -1,6 +1,7 @@
-import {describe, it, expect} from 'vitest'
+import {describe, expect, it} from 'vitest'
+
+import {defaultSelection, elementGroups, orphanObjects, resolveElements} from './elements'
 import type {CanonicalModel} from './walker'
-import {defaultSelection, resolveElements, elementGroups, orphanObjects} from './elements'
 
 function sampleModel(): CanonicalModel {
   return {
@@ -128,7 +129,12 @@ describe('orphanObjects', () => {
       edges: [
         {source: 'Method', target: 'HeroImage', relation: 'composition', fieldName: 'heroImage'},
         {source: 'Method', target: 'BodyPortableText', relation: 'composition', fieldName: 'body'},
-        {source: 'BodyPortableText', target: 'BodyImage', relation: 'composition', fieldName: 'img'},
+        {
+          source: 'BodyPortableText',
+          target: 'BodyImage',
+          relation: 'composition',
+          fieldName: 'img',
+        },
         {source: 'Resource', target: 'Publisher', relation: 'composition', fieldName: 'publisher'},
         {source: 'Newsletter', target: 'Resource', relation: 'reference', fieldName: 'resources'},
       ],
