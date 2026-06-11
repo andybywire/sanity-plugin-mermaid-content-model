@@ -2,7 +2,7 @@
 
 How the plugin turns a Sanity Studio schema into a Mermaid `classDiagram`, and the contract that mapping follows. This is the reference for contributors (human or AI-assisted) working on the rendering pipeline.
 
-The plugin originated as the [`content-model/` CLI](https://github.com/andybywire/ux-methods/tree/main/content-model) in the UX Methods monorepo; the original design rationale lives in [ADR 0006 (the export contract)](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0006-content-model-mermaid-export.md) and [ADR 0007 (in-Studio plugin form + schema source)](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0007-content-model-plugin-architecture.md). This document restates the evergreen parts so the plugin is self-contained; the ADRs remain the deeper "why."
+The plugin originated as a content-model **CLI** in the UX Methods monorepo (since retired — see below); the original design rationale lives in [ADR 0006 (the export contract)](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0006-content-model-mermaid-export.md) and [ADR 0007 (in-Studio plugin form + schema source)](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0007-content-model-plugin-architecture.md). This document restates the evergreen parts so the plugin is self-contained; the ADRs remain the deeper "why."
 
 ## Why a Mermaid class diagram
 
@@ -112,8 +112,8 @@ classDiagram
 ```
 ````
 
-## Relationship to the UX Methods CLI
+## Origin: the (retired) UX Methods CLI
 
-The pure modules — `probe`, `walker`, `emit-mermaid` — were **copied** from the [`content-model/` CLI](https://github.com/andybywire/ux-methods/tree/main/content-model), which remains the reference implementation for the **file-export** path (it writes `docs/content-model.md` from a `tsx`-loaded `schemaTypes/index.ts`). The two copies are kept behaviorally aligned by **duplicated test suites** plus this shared contract; intentional divergence should be documented.
+The pure modules — `probe`, `walker`, `emit-mermaid` — **originated in** a content-model CLI in the [UX Methods](https://github.com/andybywire/ux-methods) monorepo, which wrote a committed `docs/content-model.md` from a `tsx`-loaded `schemaTypes/index.ts`. That CLI had one hard limitation: a direct import of `schemaTypes/index.ts` is **blind to plugin-contributed types** (e.g. `skosConcept` from `sanity-plugin-taxonomy-manager`), which are registered at plugin-init time. Running the same walker/emit **inside Studio** against `useSchema()` surfaces the fully-composed schema — the reason this plugin exists.
 
-The plugin exists because the CLI's direct-import loader is **blind to plugin-contributed types** (e.g. `skosConcept` from `sanity-plugin-taxonomy-manager`) — they're registered at plugin-init time, not in `schemaTypes/index.ts`. Running the same walker/emit **inside Studio** against `useSchema()` surfaces the fully-composed schema, which is the limitation the plugin fixes. The only mechanical change on copy: relative imports drop their explicit `.ts` extensions (the plugin is bundled by pkg-utils, not run under `tsx`).
+The CLI has since been **retired** from the monorepo (see [ADR 0006](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0006-content-model-mermaid-export.md), amended, and [ADR 0007](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0007-content-model-plugin-architecture.md)), so **this plugin is now the sole, canonical implementation** of the content-model export — its own test suite is authoritative. (The two were historically kept aligned by duplicated test suites; that no longer applies.) The vocabulary-mapping contract documented above is the spec, also recorded in ADR 0006. One mechanical note from when the modules were first copied in: relative imports dropped their explicit `.ts` extensions (the plugin is bundled by pkg-utils, not run under `tsx`).
