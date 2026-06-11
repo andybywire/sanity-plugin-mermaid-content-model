@@ -1,8 +1,32 @@
-# sanity-plugin-mermaid-content-model
+# Sanity Mermaid Content Model
 
-A Sanity Studio plugin that renders the Studio's content model as a [Mermaid](https://mermaid.js.org/) class diagram, inside Studio.
+[![npm version](https://img.shields.io/npm/v/sanity-plugin-mermaid-content-model.svg)](https://www.npmjs.com/package/sanity-plugin-mermaid-content-model)
+[![CI & Release](https://github.com/andybywire/sanity-plugin-mermaid-content-model/actions/workflows/main.yml/badge.svg)](https://github.com/andybywire/sanity-plugin-mermaid-content-model/actions/workflows/main.yml)
+[![License: MIT](https://img.shields.io/npm/l/sanity-plugin-mermaid-content-model.svg)](https://github.com/andybywire/sanity-plugin-mermaid-content-model/blob/main/LICENSE)
+[![semantic-release: conventionalcommits](https://img.shields.io/badge/semantic--release-conventionalcommits-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 
-> Extracted from the [UX Methods](https://github.com/andybywire/ux-methods) monorepo, where it was developed in-place first. The design rationale (in-monorepo-first, schema source, the `_original.types` decision) is recorded in [ADR 0007](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0007-content-model-plugin-architecture.md). The plugin's own feature spec and deferred decisions live in [docs/ui-design.md](docs/ui-design.md).
+### Render Sanity content models as [Mermaid](https://mermaid.js.org/) class diagrams inside Studio. 
+
+You probably created a visual representation of your content model at some point in your Studio design process. Is it still accurate? The Mermaid Content Model plug-in provides an up-to-date view of the _actual_ structure of a Sanity project's content model. Use it to understand and communicate the current state of your content model, identify model drift and doc rot, and mitigate the unintended consequences of iterating a content model over time. 
+
+![Mermaid content model screen showing a Mermaid class diagram and Element filtering options.](docs/images/mermaid-content-model.png)
+
+
+## Features
+- Document and object types are derived from the Studio compiled schema, so types contributed by other plugins are included in the graph.
+- Attribute cardinality is captured from the compiled scheme and displayed in the model: requirement, min-count, and max-count are supported. 
+- Custom attribute validation rules are indicated by a "custom" denotation next to cardinality constraints.
+- Document and object visibility can be modified using the "Elements" options, allowing you to focus on particular parts of your model and identify shared attribute duplication and orphan objects.
+- Customized models can be copied as a PNG or as Mermaid code, allowing you to edit or further transform the document in interoperable Mermaid editors like [Mermaid.ai](https://mermaid.ai), [Mermaid Viewer](https://mermaidviewer.com), and [Mermalaid](https://www.mermalaid.com).
+
+## Installation
+```
+npm install sanity-plugin-mermaid-content-model
+# or
+pnpm add sanity-plugin-mermaid-content-model
+# or
+yarn add sanity-plugin-mermaid-content-model
+```
 
 ## Usage
 
@@ -19,26 +43,9 @@ export default defineConfig({
 })
 ```
 
-## How it works
+## License
 
-The plugin reuses the same pipeline as the [`content-model/`](https://github.com/andybywire/ux-methods/tree/main/content-model) CLI:
-
-- **`probe`** — introspects a field's `validation` function to recover cardinality and constraint markers.
-- **`walker`** — turns a Sanity schema into a `CanonicalModel` (classes, edges, warnings).
-- **`emit-mermaid`** — renders a `CanonicalModel` as a Mermaid `classDiagram` string.
-
-These three modules are **copied** from the CLI (which remains the reference implementation) and pinned by the same test suites. The contract they satisfy is documented in [ADR 0006](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0006-content-model-mermaid-export.md).
-
-Where the CLI loads schema types from `studio/schemaTypes/index.ts` via `tsx`, the plugin reads the **fully-composed** workspace schema via Studio's `useSchema()` (`src/schema-adapter.ts`) — which includes plugin-contributed types (e.g. `skosConcept`) the CLI can't see. From there it walks → filters (Elements menu) → emits, and renders the Mermaid SVG in a top-nav tool.
-
-## Scripts
-
-| Script            | Purpose                                 |
-| ----------------- | --------------------------------------- |
-| `pnpm test`       | Run the Vitest suite once.              |
-| `pnpm test:watch` | Watch mode.                             |
-| `pnpm typecheck`  | `tsc --noEmit` against `src` + configs. |
-| `pnpm build`      | Build `dist/` with `@sanity/pkg-utils`. |
+[MIT](LICENSE) © Andy Fitzgerald
 
 ## Development
 
@@ -48,6 +55,17 @@ This repo bundles a dev Studio as a workspace member (`studio/`). Run it and ope
 pnpm dev
 ```
 
-The Studio serves the plugin from its **TypeScript source** (`src/`), not from `dist/`, so edits hot-reload live with no rebuild. This works via [`vite-tsconfig-paths`](https://www.npmjs.com/package/vite-tsconfig-paths) plus a `paths` mapping in `studio/tsconfig.json` — necessary because Vite doesn't honor the package's `source` export condition on its own, and a global `source` condition would also pull `@sanity/ui` from source.
+### Scripts
 
-See the [plugin-development best-practices](https://github.com/andybywire/ux-methods/blob/main/docs/plugin-development-best-practices.md) for the full methodology (architecture, TDD, this dev-loop gotcha, and CI/CD).
+| Script            | Purpose                                 |
+| ----------------- | --------------------------------------- |
+| `pnpm test`       | Run the Vitest suite once.              |
+| `pnpm test:watch` | Watch mode.                             |
+| `pnpm typecheck`  | `tsc --noEmit` against `src` + configs. |
+| `pnpm build`      | Build `dist/` with `@sanity/pkg-utils`. |
+
+
+
+- See [UI Design](docs/ui-design.md) and [Architecture](docs/architecture.md) docs for details on plugin design intent and functional composition. 
+- See [Testing a plugin in Sanity Studio](https://github.com/sanity-io/plugin-kit#testing-a-plugin-in-sanity-studio)
+for instructions on how to run this plugin with hot-reload in a standalone studio.
