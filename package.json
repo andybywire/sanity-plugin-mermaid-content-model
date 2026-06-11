@@ -2,7 +2,6 @@
   "name": "sanity-plugin-mermaid-content-model",
   "version": "0.1.0",
   "packageManager": "pnpm@10.11.0",
-  "private": true,
   "description": "Sanity Studio plugin that renders the content model as a Mermaid class diagram.",
   "keywords": [
     "sanity",
@@ -12,6 +11,14 @@
     "class-diagram",
     "schema"
   ],
+  "homepage": "https://github.com/andybywire/sanity-plugin-mermaid-content-model#readme",
+  "bugs": {
+    "url": "https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andybywire/sanity-plugin-mermaid-content-model.git"
+  },
   "license": "MIT",
   "author": "Andy Fitzgerald",
   "type": "module",
@@ -29,6 +36,7 @@
     "dist",
     "src"
   ],
+  "browserslist": "extends @sanity/browserslist-config",
   "scripts": {
     "build": "pkg-utils build --strict --check --clean",
     "watch": "pkg-utils watch --strict",
@@ -53,6 +61,7 @@
     "@eslint/compat": "^2.0.2",
     "@eslint/eslintrc": "^3.3.4",
     "@eslint/js": "^9.0.0",
+    "@sanity/browserslist-config": "^1.0.5",
     "@sanity/eslint-config-studio": "^6.0.0",
     "@sanity/pkg-utils": "^10",
     "@sanity/semantic-release-preset": "^6.0.0",
@@ -86,5 +95,14 @@
     "@sanity/ui": "^3.2.0",
     "mermaid": "^11.15.0",
     "react-zoom-pan-pinch": "^4.0.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./package.json": "./package.json"
+    }
   }
 }
