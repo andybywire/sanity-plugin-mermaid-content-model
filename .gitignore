@@ -5,5 +5,8 @@ coverage
 *.tgz
 tmp-studio-install-test
 
+# Claude Code — keep shared settings.json, ignore personal/local overrides
+.claude/settings.local.json
+
 # macOS
 .DS_Store
