@@ -25,6 +25,12 @@ useSchema() → readSchemaSource → walk → filterModel → emit → MermaidVi
 
 - **`pnpm dev`** — runs the bundled dev Studio (`studio/`); log in to the dev project (`e0a474c4`) and open the **Content Model** tool. The plugin is served from `src` live (via `vite-tsconfig-paths`) with HMR.
 - **The gate before every commit:** `pnpm test && pnpm typecheck && pnpm build && pnpm lint` — all green. Visual / behind-auth checks are the author's (eyeball in the dev Studio).
+- **TDD is the default cadence:** write the test, see red, write the implementation, see green — for every behavior change. The one escape hatch: when the implementation is genuinely obvious (a one-line pure transform), you may skip the see-red step, but **say so explicitly** rather than drifting into test-after. Principles that keep this cheap:
+  - **Pure logic carries the weight.** Most tests are plain input→output with hand-built fixtures and no mocks (the pipeline is pure by design); type fixtures with the contract type (`CanonicalModel`) so an invalid one fails to compile, not at runtime.
+  - **One integration test per impure seam.** Each module that touches the outside world (e.g. `schema-adapter`) gets at least one end-to-end test against a realistic fixture.
+  - **Strict `toEqual` on the contract shape.** Pin `CanonicalModel` exactly — this catches drift as the model grows, at the accepted cost of touching old tests when you add a field.
+  - **DOM tests are for interaction wiring** (a click calls the right handler, a toggle re-renders, a warning shows) — not visual correctness, which stays the author's eyeball check. Don't over-test the thin renderer; its logic already lives in (tested) pure modules.
+  - Full rationale + dev-loop/CI lessons: UX Methods' [plugin-development-best-practices.md](https://github.com/andybywire/ux-methods/blob/main/docs/plugin-development-best-practices.md).
 - **Tests:** Vitest + jsdom. Pure logic is tested without a DOM; a few component-interaction tests mock browser APIs. Gotchas (already handled in `src/test-setup.ts`): jsdom needs `window.matchMedia` and `ResizeObserver` stubs; `asyncUtilTimeout` is raised for slow CI; `afterEach(cleanup)` per component test (Vitest `globals: false`).
 - Scripts table: see the [README](README.md#scripts).
 
