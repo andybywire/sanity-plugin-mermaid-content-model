@@ -1,7 +1,7 @@
 // Probe a Sanity `validation` function to discover which Rule methods were
 // called and with what arguments. The probe never imports Sanity's actual
 // Rule class — it passes a Proxy that records every method invocation in the
-// chain. See ../../docs/decisions/0006-content-model-mermaid-export.md for
+// chain. See ../docs/decisions/0001-content-model-mermaid-export.md for
 // the broader rationale (cardinality precision, custom-validator marker).
 
 export interface ProbeResult {

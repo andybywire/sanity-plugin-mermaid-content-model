@@ -1,6 +1,6 @@
 // Pure filter: hide selected classes from a CanonicalModel.
 //
-// The seam the Elements menu drives. Per ADR 0006/0007's architecture,
+// The seam the Elements menu drives. Per ADR 0001/0002's architecture,
 // filtering happens *between* walk and emit — not inside either — so the same
 // model can be rendered at different levels of detail without re-walking the
 // schema. The UI (Phase 3b) resolves the Elements selection (category toggles,

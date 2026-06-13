@@ -13,8 +13,8 @@ import {ContentModelTool} from './tool/ContentModelTool'
  * pipeline is reused (copied from the CLI) and re-exported here for independent
  * use.
  *
- * See ../../docs/decisions/0007-content-model-plugin-architecture.md and
- * ../../docs/decisions/0006-content-model-mermaid-export.md.
+ * See ../docs/decisions/0002-content-model-plugin-architecture.md and
+ * ../docs/decisions/0001-content-model-mermaid-export.md.
  */
 export const mermaidContentModel = definePlugin(() => ({
   name: 'sanity-plugin-mermaid-content-model',

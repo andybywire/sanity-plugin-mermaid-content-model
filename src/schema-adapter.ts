@@ -13,11 +13,11 @@
 // working. The compiled `get()`/`getTypeNames()` API would expose the same
 // type set, but with validation already resolved to specs — which would
 // degrade cardinality to the precision `sanity schema extract` gives, the very
-// thing ADR 0006 rejected. Hence we read `_original`.
+// thing ADR 0001 rejected. Hence we read `_original`.
 //
 // `_original` is marked `@internal` in @sanity/types: it is not part of
 // Sanity's public API contract, so it could change without a semver-major bump
-// or changelog note. We accept that risk knowingly (see ADR 0007) because it is
+// or changelog note. We accept that risk knowingly (see ADR 0002) because it is
 // the only source that is raw + validation-preserving + plugin-aware, it is set
 // by the schema compiler as its canonical build-input, and Sanity's own runtime
 // reads it. The `readSchemaSource` guard below bounds the downside: if the field
@@ -25,7 +25,7 @@
 // human-readable warning the tool surfaces — never a silent blank diagram or a
 // crash.
 //
-// See ../../docs/decisions/0007-content-model-plugin-architecture.md.
+// See ../docs/decisions/0002-content-model-plugin-architecture.md.
 
 import type {Schema, SchemaTypeDefinition} from 'sanity'
 
@@ -45,7 +45,7 @@ export interface SchemaSource {
 
 const INTERNAL_SHAPE_WARNING =
   "Couldn't read the Studio schema's type definitions: `Schema._original.types` was missing or not an array. " +
-  'This is an internal Sanity field the plugin depends on (see ADR 0007); the installed Sanity version may have ' +
+  'This is an internal Sanity field the plugin depends on (see ADR 0002); the installed Sanity version may have ' +
   'changed its internal schema shape. The content-model diagram cannot be generated until the plugin is updated.'
 
 /**

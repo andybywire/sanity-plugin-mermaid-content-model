@@ -4,7 +4,7 @@ Orientation for working in this repo (human or AI-assisted). User-facing install
 
 ## What this plugin is
 
-A Sanity Studio plugin that renders the Studio's content model as a [Mermaid](https://mermaid.js.org/) `classDiagram`, **in-Studio** (a top-nav **Content Model** tool). It reads the **fully-composed** workspace schema via `useSchema()`, so types contributed by *other* plugins (e.g. `skosConcept` from `sanity-plugin-taxonomy-manager`) are included. It began as a CLI in the [UX Methods](https://github.com/andybywire/ux-methods) monorepo; that CLI has been retired, so **this plugin is now the sole, canonical implementation** — its own test suite is authoritative.
+A Sanity Studio plugin that renders the Studio's content model as a [Mermaid](https://mermaid.js.org/) `classDiagram`, **in-Studio** (a top-nav **Content Model** tool). It reads the **fully-composed** workspace schema via `useSchema()`, so types contributed by *other* plugins (e.g. `skosConcept` from `sanity-plugin-taxonomy-manager`) are included. It began as a CLI (in a monorepo, since retired), so **this plugin is now the sole, canonical implementation** — its own test suite is authoritative. The decisions behind the design are recorded in [docs/decisions/](docs/decisions/).
 
 ## Architecture (preserve this shape)
 
@@ -30,7 +30,7 @@ useSchema() → readSchemaSource → walk → filterModel → emit → MermaidVi
   - **One integration test per impure seam.** Each module that touches the outside world (e.g. `schema-adapter`) gets at least one end-to-end test against a realistic fixture.
   - **Strict `toEqual` on the contract shape.** Pin `CanonicalModel` exactly — this catches drift as the model grows, at the accepted cost of touching old tests when you add a field.
   - **DOM tests are for interaction wiring** (a click calls the right handler, a toggle re-renders, a warning shows) — not visual correctness, which stays the author's eyeball check. Don't over-test the thin renderer; its logic already lives in (tested) pure modules.
-  - Full rationale + dev-loop/CI lessons: UX Methods' [plugin-development-best-practices.md](https://github.com/andybywire/ux-methods/blob/main/docs/plugin-development-best-practices.md).
+  - Full rationale + dev-loop/CI lessons: [docs/plugin-development.md](docs/plugin-development.md).
 - **Tests:** Vitest + jsdom. Pure logic is tested without a DOM; a few component-interaction tests mock browser APIs. Gotchas (already handled in `src/test-setup.ts`): jsdom needs `window.matchMedia` and `ResizeObserver` stubs; `asyncUtilTimeout` is raised for slow CI; `afterEach(cleanup)` per component test (Vitest `globals: false`).
 - Scripts table: see the [README](README.md#scripts).
 
@@ -40,13 +40,13 @@ useSchema() → readSchemaSource → walk → filterModel → emit → MermaidVi
 - **The commit type drives the release:** `fix:` → patch, `feat:` → minor, `feat!:` / `BREAKING CHANGE:` → major; `chore:`/`docs:`/`test:`/`ci:`/`refactor:` → **no release**. Name commits accordingly.
 - **Use `git commit -F <file>`, not `-m`,** for messages containing backticks (zsh eats backtick-quoted spans).
 - **Releases are fully automated — never `npm publish` by hand.** Merging to `main` triggers **semantic-release** over OIDC trusted publishing: version bump, `CHANGELOG.md`, npm publish, GitHub release. `main` is branch-protected (a PR with green checks is required; admins have an escape hatch).
-- **Feature/fix flow:** branch → PR → green CI → **squash-merge with a Conventional-Commit title** (that title becomes the changelog entry and decides the release).
+- **Feature/fix flow:** branch → PR → green CI → **merge commit** (not squash/rebase). Every commit lands on `main`, so **each commit message must be a clean Conventional Commit** — semantic-release reads them all to build the changelog and decide the release. (This is deliberate: it keeps individual changes legible for collaborators and makes conventional commits a shared habit. Never rebase or force-push `main` — that's what orphans the version tag.)
 
 ## Working on issues
 
 - **GitHub Issues are the active work queue.** Start with `gh issue list` / `gh issue view N`, then plan and implement against that issue.
 - The **"Deferred decisions"** in [docs/ui-design.md](docs/ui-design.md) are the grooming backlog — promote them to issues as they become actionable.
-- Reusable plugin-development methodology (TDD cadence, the dev-loop, CI/release lessons) lives in UX Methods' [plugin-development-best-practices.md](https://github.com/andybywire/ux-methods/blob/main/docs/plugin-development-best-practices.md).
+- Plugin-development methodology (TDD cadence, the dev-loop, CI/release lessons) lives in [docs/plugin-development.md](docs/plugin-development.md).
 
 ## Layout
 
