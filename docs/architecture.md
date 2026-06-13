@@ -1,12 +1,12 @@
 # Architecture
 
-How the plugin turns a Sanity Studio schema into a Mermaid `classDiagram`, and the contract that mapping follows. This is the reference for contributors (human or AI-assisted) working on the rendering pipeline.
+How the plugin turns a Sanity Studio schema into a Mermaid `classDiagram`, and the contract that mapping follows. This is the working reference for contributors (human or AI-assisted) on the rendering pipeline.
 
-The plugin originated as a content-model **CLI** in the UX Methods monorepo (since retired — see below); the original design rationale lives in [ADR 0006 (the export contract)](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0006-content-model-mermaid-export.md) and [ADR 0007 (in-Studio plugin form + schema source)](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0007-content-model-plugin-architecture.md). This document restates the evergreen parts so the plugin is self-contained; the ADRs remain the deeper "why."
+The decisions behind it — why a Mermaid class diagram, and why an in-Studio plugin that reads the composed schema — are recorded in [ADR 0001 (the export contract)](decisions/0001-content-model-mermaid-export.md) and [ADR 0002 (in-Studio plugin form + schema source)](decisions/0002-content-model-plugin-architecture.md). This document is the living restatement of the contract; the ADRs are the deeper "why."
 
 ## Why a Mermaid class diagram
 
-Sanity models two genuinely different kinds of thing: **documents** (entities with their own identity and top-level URL) and **objects** (compositional values, always embedded in something else). Mermaid's `classDiagram` is purpose-built to show exactly this: stereotypes mark the document/object distinction, composition diamonds mark embedded objects, association arrows mark references, cardinality sits on the lines, and `classDef` styles each stereotype. (An earlier OWL/RDFS attempt flattened the document/object distinction into a single class hierarchy — a paradigm mismatch. See ADR 0006.) The emitted Mermaid is also designed to be **portable** — it should render in any Mermaid host (mermaid.live, GitHub, etc.) without app-specific config.
+Sanity models two genuinely different kinds of thing: **documents** (entities with their own identity and top-level URL) and **objects** (compositional values, always embedded in something else). Mermaid's `classDiagram` is purpose-built to show exactly this: stereotypes mark the document/object distinction, composition diamonds mark embedded objects, association arrows mark references, cardinality sits on the lines, and `classDef` styles each stereotype. (An earlier OWL/RDFS attempt flattened the document/object distinction into a single class hierarchy — a paradigm mismatch. See [ADR 0001](decisions/0001-content-model-mermaid-export.md).) The emitted Mermaid is also designed to be **portable** — it should render in any Mermaid host (mermaid.live, GitHub, etc.) without app-specific config.
 
 ## Pipeline
 
@@ -36,7 +36,7 @@ Two rejected alternatives:
 - **Compiled `get()` / `getTypeNames()` (public API)** — sees all plugin types, but validation is already resolved to specs, so the probe can't introspect it and cardinality degrades.
 - **Importing `schemaTypes/index.ts` directly (the CLI's path)** — raw + validation intact, but blind to plugin-contributed types.
 
-`_original` is tagged `@internal`, so the adapter **guards** the access and degrades gracefully (a missing/non-array `_original.types` yields an empty result + a human-readable warning, never a crash or silent blank). The dependency is isolated to that one ~4-line function. Full risk analysis in ADR 0007. Re-verify the access when widening the `sanity` peer range.
+`_original` is tagged `@internal`, so the adapter **guards** the access and degrades gracefully (a missing/non-array `_original.types` yields an empty result + a human-readable warning, never a crash or silent blank). The dependency is isolated to that one ~4-line function. Full risk analysis in [ADR 0002](decisions/0002-content-model-plugin-architecture.md). Re-verify the access when widening the `sanity` peer range.
 
 ## The mapping contract (Sanity → Mermaid `classDiagram`)
 
@@ -112,8 +112,8 @@ classDiagram
 ```
 ````
 
-## Origin: the (retired) UX Methods CLI
+## Origins
 
-The pure modules — `probe`, `walker`, `emit-mermaid` — **originated in** a content-model CLI in the [UX Methods](https://github.com/andybywire/ux-methods) monorepo, which wrote a committed `docs/content-model.md` from a `tsx`-loaded `schemaTypes/index.ts`. That CLI had one hard limitation: a direct import of `schemaTypes/index.ts` is **blind to plugin-contributed types** (e.g. `skosConcept` from `sanity-plugin-taxonomy-manager`), which are registered at plugin-init time. Running the same walker/emit **inside Studio** against `useSchema()` surfaces the fully-composed schema — the reason this plugin exists.
+The pure modules — `probe`, `walker`, `emit-mermaid` — began life in a content-model **CLI** that loaded a Studio's `schemaTypes/index.ts` directly. That CLI had one hard limitation: a direct import is **blind to plugin-contributed types** (e.g. `skosConcept` from `sanity-plugin-taxonomy-manager`), which are registered at plugin-init time. Running the same walker/emit **inside Studio** against `useSchema()` surfaces the fully-composed schema — the reason this plugin exists (see [ADR 0002](decisions/0002-content-model-plugin-architecture.md)).
 
-The CLI has since been **retired** from the monorepo (see [ADR 0006](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0006-content-model-mermaid-export.md), amended, and [ADR 0007](https://github.com/andybywire/ux-methods/blob/main/docs/decisions/0007-content-model-plugin-architecture.md)), so **this plugin is now the sole, canonical implementation** of the content-model export — its own test suite is authoritative. (The two were historically kept aligned by duplicated test suites; that no longer applies.) The vocabulary-mapping contract documented above is the spec, also recorded in ADR 0006. One mechanical note from when the modules were first copied in: relative imports dropped their explicit `.ts` extensions (the plugin is bundled by pkg-utils, not run under `tsx`).
+That CLI has since been retired, so **this plugin is now the sole, canonical implementation** of the content-model export — its own test suite is authoritative. The vocabulary-mapping contract documented above is the spec (recorded in [ADR 0001](decisions/0001-content-model-mermaid-export.md)).

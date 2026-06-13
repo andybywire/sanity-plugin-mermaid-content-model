@@ -5,7 +5,7 @@
 // walker.ts; downstream of every interpretation decision (cardinality,
 // custom marker, edge relation) — this module is purely presentational.
 //
-// See ../../docs/decisions/0006-content-model-mermaid-export.md for the
+// See ../docs/decisions/0001-content-model-mermaid-export.md for the
 // rendering contract.
 
 import type {

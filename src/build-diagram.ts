@@ -6,7 +6,7 @@
 // and fully unit-tested — lets the component stay a thin renderer that needs no
 // DOM-level testing of the diagram logic.
 //
-// See ../../docs/decisions/0007-content-model-plugin-architecture.md.
+// See ../docs/decisions/0002-content-model-plugin-architecture.md.
 
 import type {Schema} from 'sanity'
 
