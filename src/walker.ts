@@ -7,7 +7,7 @@
 // (eventually) probes each field's validation function to determine
 // cardinality with the precision schema-extract can't deliver.
 //
-// See ../../docs/decisions/0006-content-model-mermaid-export.md for the
+// See ../docs/decisions/0001-content-model-mermaid-export.md for the
 // contract this walker satisfies.
 
 import {probe} from './probe'
@@ -125,9 +125,26 @@ type RawReferenceTo = RawReferenceTarget | RawReferenceTarget[]
 
 interface RawArrayMember {
   type: string
+  /**
+   * Present on inline-declared members that carry their own type name —
+   * Portable Text inline objects and annotations (`{name, type: 'object',
+   * fields}`). Anonymous inline objects declared as array fields are named
+   * by their field instead, so they don't set this.
+   */
+  name?: string
   to?: RawReferenceTo
   /** Present on inline anonymous object members of an array. */
   fields?: RawField[]
+  /**
+   * Present on `block` members: the inline object types that can appear
+   * within the block's text (e.g. an inline highlight or mention).
+   */
+  of?: RawArrayMember[]
+  /**
+   * Present on `block` members: the span-level marks. `annotations` holds
+   * the object/reference types that decorate a span (e.g. a `link`).
+   */
+  marks?: {annotations?: RawArrayMember[]}
 }
 
 interface RawField {
@@ -162,7 +179,7 @@ function firstReferenceTarget(to: RawReferenceTo | undefined): string | undefine
 }
 
 // Platform metadata fields auto-injected by Sanity onto documents — never
-// part of the user-authored content model. Mirrors the list in ADR 0006.
+// part of the user-authored content model. Mirrors the list in ADR 0001.
 const SKIP_FIELD_NAMES = new Set([
   '_id',
   '_type',
@@ -181,7 +198,7 @@ const SKIP_FIELD_NAMES = new Set([
 // - `text` collapses to `string` — Sanity's `text` is a multi-line string
 //   editor; structurally identical at the data layer.
 // - `email` collapses to `string` — string with regex validation.
-// - `slug` collapses to `string` per ADR 0006 (the slug `current` is the
+// - `slug` collapses to `string` per ADR 0001 (the slug `current` is the
 //   value that matters; the `_type` wrapper is uninteresting in a content
 //   model view).
 // - `url` keeps its own label — meaningful semantic distinction, and it's
@@ -218,7 +235,7 @@ const REFERENCE_TYPES = new Set(['reference', 'crossDatasetReference', 'globalDo
 const IMAGE_INTERNAL_FIELD_NAMES = new Set(['hotspot', 'crop', 'media'])
 
 // Type-name patterns that are not part of the user-authored content model.
-// Mirrors the skip rules in ADR 0006.
+// Mirrors the skip rules in ADR 0001.
 const SKIP_TYPE_PATTERNS: RegExp[] = [
   /^sanity\./, // Sanity-internal helpers (imageAsset, hotspot, crop, …)
   /^assist\./, // @sanity/assist plugin documents/types
@@ -286,11 +303,81 @@ function resolveNamedType(
   return null
 }
 
+/** How an embed member of a portable-text array maps to the diagram. */
+type EmbedKind = 'reference' | 'namedClass' | 'inlineObject'
+
 /**
- * Detect "structural portable text": an array whose `of` contains
- * `block` AND at least one class-able member (a named class type or
- * a reference). Returns the list of structural members if so, or null
- * if `of` isn't portable text at all or is block-only.
+ * Classify a candidate portable-text embed member. Returns null for
+ * members that don't surface as a class-able embed (primitives, or a
+ * named type that isn't a kept class).
+ *
+ * - `reference` — a `reference`/cross-/global-reference with a resolvable
+ *   target → association edge.
+ * - `namedClass` — a member whose `type` names a kept document/object/image
+ *   class → composition edge to that class.
+ * - `inlineObject` — an inline-declared object (`{name, type: 'object',
+ *   fields}`) that isn't a named top-level type → emits its own
+ *   `origin: 'inline'` class, named by the member's `name`.
+ */
+function classifyEmbedMember(
+  member: RawArrayMember,
+  typeMap: Map<string, RawType>,
+): EmbedKind | null {
+  if (PRIMITIVE_TYPES[member.type]) return null
+  if (REFERENCE_TYPES.has(member.type)) {
+    return firstReferenceTarget(member.to) ? 'reference' : null
+  }
+  // Inline-declared object/annotation: declared in place with its own
+  // `name` and `fields`, rather than referencing a named top-level type.
+  if (member.type === 'object' && member.fields && member.name) {
+    return 'inlineObject'
+  }
+  const named = typeMap.get(member.type)
+  if (named && isClassType(named)) return 'namedClass'
+  return null
+}
+
+/**
+ * Collect every candidate embed member of a portable-text `of` array, from
+ * the three positions an embed can occupy:
+ *  - top-level non-block members (block-level inserts: a bodyImage object,
+ *    a callout, a reference between blocks);
+ *  - inline objects nested in a `block` member's own `of` (inserted inline
+ *    within the block's text);
+ *  - annotation members in a `block` member's `marks.annotations` (objects
+ *    or references decorating a span of text).
+ * Deduped by identity (type + inline name + reference target) so the same
+ * type embedded under multiple block members doesn't yield duplicate
+ * fields/edges. Classification (class-able or not) is left to callers.
+ */
+function collectPortableTextEmbedMembers(of: RawArrayMember[]): RawArrayMember[] {
+  const candidates: RawArrayMember[] = []
+  for (const member of of) {
+    if (member.type === 'block') {
+      if (member.of) candidates.push(...member.of)
+      if (member.marks?.annotations) candidates.push(...member.marks.annotations)
+      continue
+    }
+    candidates.push(member)
+  }
+
+  const seen = new Set<string>()
+  const unique: RawArrayMember[] = []
+  for (const m of candidates) {
+    const key = `${m.type} ${m.name ?? ''} ${firstReferenceTarget(m.to) ?? ''}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(m)
+  }
+  return unique
+}
+
+/**
+ * Detect "structural portable text": an array whose `of` contains `block`
+ * AND at least one class-able embed — anywhere an embed can live (top-level
+ * members, inline objects in a block's `of`, or `marks.annotations`).
+ * Returns the list of class-able embed members if so, or null if `of` isn't
+ * portable text at all or carries no embeds.
  *
  * Block-only portable text stays as scalar `PortableTextChar` (used for
  * the common case of inline `overview` / `colophon` fields). Structural
@@ -304,18 +391,9 @@ function structuralPortableTextEmbeds(
   typeMap: Map<string, RawType>,
 ): RawArrayMember[] | null {
   if (!of || !of.some((m) => m.type === 'block')) return null
-
-  const embeds: RawArrayMember[] = []
-  for (const member of of) {
-    if (member.type === 'block') continue
-    if (PRIMITIVE_TYPES[member.type]) continue
-    if (REFERENCE_TYPES.has(member.type)) {
-      if (firstReferenceTarget(member.to)) embeds.push(member)
-      continue
-    }
-    const named = typeMap.get(member.type)
-    if (named && isClassType(named)) embeds.push(member)
-  }
+  const embeds = collectPortableTextEmbedMembers(of).filter(
+    (m) => classifyEmbedMember(m, typeMap) !== null,
+  )
   return embeds.length > 0 ? embeds : null
 }
 
@@ -334,47 +412,52 @@ function syntheticBlockField(): CanonicalField {
 
 /**
  * Build the canonical fields for a structural-portable-text class:
- * synthetic block field first, then one field per non-block class-able
- * embed (composition or reference). Also pushes the outgoing edges to
- * `edges` since the embeds are object-kinded.
+ * synthetic block field first, then one field per class-able embed —
+ * collected from all three embed positions (top-level members, a block's
+ * inline `of`, and `marks.annotations`). Each embed becomes a composition
+ * or reference field with a matching edge pushed to `ctx.edges`.
+ * Inline-declared object embeds (`{name, type: 'object', fields}`) also get
+ * their own `origin: 'inline'` class emitted, under the inline naming
+ * policy (parent = this portable-text class).
  */
 function buildPortableTextClassFields(
   of: RawArrayMember[],
-  sourceClassName: string,
-  typeMap: Map<string, RawType>,
-  edges: Edge[],
+  ptClassName: string,
+  ctx: WalkContext,
 ): CanonicalField[] {
   const fields: CanonicalField[] = [syntheticBlockField()]
-  for (const member of of) {
-    if (member.type === 'block') continue
-    if (PRIMITIVE_TYPES[member.type]) continue
+  for (const member of collectPortableTextEmbedMembers(of)) {
+    const kind = classifyEmbedMember(member, ctx.typeMap)
+    if (!kind) continue
 
-    let char: ObjectChar | null = null
-    let fieldName = ''
+    let char: ObjectChar
+    let fieldName: string
 
-    if (REFERENCE_TYPES.has(member.type)) {
-      const target = firstReferenceTarget(member.to)
-      if (!target) continue
-      char = {
-        kind: 'object',
-        target: pascalCase(target),
-        relation: 'reference',
-        array: true,
-      }
-      // Use the target's name as the field name; portable-text references
-      // don't have a field name of their own in the schema, so we name
-      // them by what they point at.
+    if (kind === 'reference') {
+      const target = firstReferenceTarget(member.to) as string
+      char = {kind: 'object', target: pascalCase(target), relation: 'reference', array: true}
+      // References inside portable text have no field name of their own, so
+      // we name them by what they point at — as elsewhere in the walker.
       fieldName = target
-    } else {
-      const named = typeMap.get(member.type)
-      if (!named || !isClassType(named)) continue
-      char = {
-        kind: 'object',
-        target: pascalCase(named.name),
-        relation: 'composition',
-        array: true,
-      }
+    } else if (kind === 'namedClass') {
+      const named = ctx.typeMap.get(member.type) as RawType
+      char = {kind: 'object', target: pascalCase(named.name), relation: 'composition', array: true}
       fieldName = member.type
+    } else {
+      // Inline-declared object/annotation: emit a class for it, named by its
+      // own `name` under the inline disambiguation rule (bare unless it
+      // collides with a named class or another inline of the same name).
+      const memberName = member.name as string
+      const className = resolveInlineClassName(memberName, ptClassName, ctx)
+      maybeEmitCollisionWarning(memberName, ctx)
+      ctx.classes.push({
+        name: className,
+        stereotype: 'object',
+        origin: 'inline',
+        fields: walkFields(member.fields, className, 'object', ctx),
+      })
+      char = {kind: 'object', target: className, relation: 'composition', array: true}
+      fieldName = memberName
     }
 
     fields.push({
@@ -383,8 +466,8 @@ function buildPortableTextClassFields(
       cardinality: {min: 0, max: '*'},
       hasCustomMarker: false,
     })
-    edges.push({
-      source: sourceClassName,
+    ctx.edges.push({
+      source: ptClassName,
       target: char.target,
       relation: char.relation,
       fieldName,
@@ -601,23 +684,77 @@ function maybeEmitCollisionWarning(fieldName: string, ctx: WalkContext): void {
 }
 
 /**
+ * Count the inline-declared object/annotation embeds of a portable-text
+ * `of` array by bare name (recursing into their own fields), so they share
+ * the same collision-disambiguation policy as field-declared inline
+ * objects. Named-type and reference embeds emit no class, so they aren't
+ * counted here.
+ */
+function countPortableTextInlineEmbeds(
+  of: RawArrayMember[],
+  typeMap: Map<string, RawType>,
+  out: Map<string, number>,
+): void {
+  for (const member of collectPortableTextEmbedMembers(of)) {
+    if (classifyEmbedMember(member, typeMap) !== 'inlineObject') continue
+    const bare = pascalCase(member.name as string)
+    out.set(bare, (out.get(bare) ?? 0) + 1)
+    collectInlineCounts(member.fields, typeMap, out)
+  }
+}
+
+/**
  * Recursively count how often each inline-object bare name appears across
  * the schema. Used by `resolveInlineClassName` to decide which inlines
- * need parent-prefixing.
+ * need parent-prefixing. Counts both field-declared inline objects and
+ * inline-declared objects/annotations embedded in portable text.
  */
-function collectInlineCounts(rawFields: RawField[] | undefined, out: Map<string, number>): void {
+function collectInlineCounts(
+  rawFields: RawField[] | undefined,
+  typeMap: Map<string, RawType>,
+  out: Map<string, number>,
+): void {
   if (!rawFields) return
   for (const f of rawFields) {
     if (SKIP_FIELD_NAMES.has(f.name)) continue
+    // Portable text takes precedence over the inline-object check (mirrors
+    // walkFields), so a PT field's inline embeds are counted by their own
+    // member name rather than by the field name.
+    if (f.type === 'array' && f.of?.some((m) => m.type === 'block')) {
+      countPortableTextInlineEmbeds(f.of, typeMap, out)
+      continue
+    }
     const inline = inlineObjectFor(f)
     if (inline) {
       const bare = pascalCase(f.name)
       out.set(bare, (out.get(bare) ?? 0) + 1)
       // Recurse — nested inline objects also need to be counted so they
       // can be disambiguated against each other.
-      collectInlineCounts(inline.innerFields, out)
+      collectInlineCounts(inline.innerFields, typeMap, out)
     }
   }
+}
+
+/**
+ * Build the per-bare-name inline-object counts across the whole schema.
+ * Walks the fields of every emitted top-level class, and counts a named
+ * portable-text alias's own inline-declared embeds at its definition site
+ * (referencing fields don't re-emit them).
+ */
+function buildInlineCounts(
+  rawTypes: RawType[],
+  typeMap: Map<string, RawType>,
+): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const t of rawTypes) {
+    if (shouldSkipTypeName(t.name)) continue
+    if (t.type === 'document' || t.type === 'object' || t.type === 'image') {
+      collectInlineCounts(t.fields, typeMap, out)
+    } else if (t.type === 'array' && t.of?.some((m) => m.type === 'block')) {
+      countPortableTextInlineEmbeds(t.of, typeMap, out)
+    }
+  }
+  return out
 }
 
 function walkFields(
@@ -661,7 +798,7 @@ function walkFields(
           name: className,
           stereotype: 'object',
           origin: 'portableText',
-          fields: buildPortableTextClassFields(f.of, className, ctx.typeMap, ctx.edges),
+          fields: buildPortableTextClassFields(f.of, className, ctx),
         })
         const char: ObjectChar = {
           kind: 'object',
@@ -765,13 +902,7 @@ export function walk(types: unknown[]): CanonicalModel {
       namedClassNames.add(pascalCase(t.name))
     }
   }
-  const inlineCounts = new Map<string, number>()
-  for (const t of rawTypes) {
-    if (shouldSkipTypeName(t.name)) continue
-    if (t.type === 'document' || t.type === 'object' || t.type === 'image') {
-      collectInlineCounts(t.fields, inlineCounts)
-    }
-  }
+  const inlineCounts = buildInlineCounts(rawTypes, typeMap)
 
   const ctx: WalkContext = {
     typeMap,
@@ -827,7 +958,7 @@ export function walk(types: unknown[]): CanonicalModel {
         name: className,
         stereotype: 'object',
         origin: 'portableText',
-        fields: buildPortableTextClassFields(t.of ?? [], className, typeMap, ctx.edges),
+        fields: buildPortableTextClassFields(t.of ?? [], className, ctx),
       })
     }
   }

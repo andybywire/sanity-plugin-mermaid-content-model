@@ -10,8 +10,10 @@ import {defineArrayMember, defineField, defineType, type SchemaTypeDefinition} f
  *   contributed by a plugin show up via useSchema() where the CLI couldn't see
  *   them.
  * - a named object reused by a document (`seo`)
- * - an inline object inside Portable Text (`inlineHighlight`) and a block-level
- *   object (`calloutBox`) — the dependent inline/portable-text categories
+ * - an inline object inside a Portable Text block's `of` (`inlineHighlight`), an
+ *   inline-declared annotation in the block's `marks` (`link`), and a block-level
+ *   object (`calloutBox`) — the dependent inline/portable-text categories, and
+ *   the three positions a PT embed can occupy (see issue #2)
  * - references: document→document (`author`, `relatedArticles`) and
  *   document→concept (`topics` → `skosConcept`)
  * - an intentional orphan object (`orphanWidget`) — defined but referenced by
@@ -104,6 +106,19 @@ const article = defineType({
           type: 'block',
           // inline object, lives inside a block's children
           of: [defineArrayMember({type: 'inlineHighlight'})],
+          // inline-declared annotation, lives in the block's marks
+          marks: {
+            annotations: [
+              defineArrayMember({
+                name: 'link',
+                type: 'object',
+                title: 'Link',
+                fields: [
+                  defineField({name: 'href', type: 'url', validation: (rule) => rule.required()}),
+                ],
+              }),
+            ],
+          },
         }),
         // block-level (portable-text) object
         defineArrayMember({type: 'calloutBox'}),

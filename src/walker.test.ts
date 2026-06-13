@@ -1092,7 +1092,7 @@ describe('walker', () => {
   // type (named class, reference) is promoted to its own class. The
   // synthetic `+block: PortableText [0..*]` field represents the prose
   // content; each non-block embed becomes a field with a composition or
-  // reference edge. See ADR 0006.
+  // reference edge. See ADR 0001.
 
   it('promotes a named portable-text alias with structural embeds to a class', () => {
     const types = [
@@ -1247,5 +1247,344 @@ describe('walker', () => {
     expect(model.classes.map((c) => c.name)).toEqual(['Method'])
     const method = model.classes[0]
     expect(method?.fields[0]?.char).toEqual({kind: 'portableText'})
+  })
+
+  // --- Portable Text inline embeds (block.of + marks.annotations) ---
+  // An embed of a Portable Text array can live in three places: a top-level
+  // non-block member (block-level inserts), a `block` member's own `of`
+  // (inline objects within the text), or a `block` member's
+  // `marks.annotations` (span annotations). All three connect to the
+  // portable-text class identically — composition for objects, association
+  // for references — and inline-declared objects/annotations get their own
+  // `origin: 'inline'` class under the inline naming policy. See issue #2.
+
+  it('edges a named inline object nested in a block `of` to the portable-text class', () => {
+    // The reported bug: inlineHighlight lives in the block's `of`, alongside a
+    // block-level calloutBox. Previously the block was skipped wholesale, so
+    // inlineHighlight rendered as an orphan class with no edge.
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [{type: 'block', of: [{type: 'inlineHighlight'}]}, {type: 'calloutBox'}],
+          },
+        ],
+      },
+      {name: 'inlineHighlight', type: 'object', fields: [{name: 'text', type: 'string'}]},
+      {name: 'calloutBox', type: 'object', fields: [{name: 'tone', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const body = model.classes.find((c) => c.name === 'Body')
+    expect(body?.origin).toBe('portableText')
+    expect(body?.fields.map((f) => f.name)).toEqual(['block', 'inlineHighlight', 'calloutBox'])
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'InlineHighlight',
+      relation: 'composition',
+      fieldName: 'inlineHighlight',
+    })
+    // The two-hop relationship from the document still holds.
+    expect(model.edges).toContainEqual({
+      source: 'Article',
+      target: 'Body',
+      relation: 'composition',
+      fieldName: 'body',
+    })
+  })
+
+  it('promotes a block-only PT field to a class when its block `of` has an inline object', () => {
+    // No top-level embed, only an inline object in the block — still enough to
+    // promote, otherwise the inline object would orphan.
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {name: 'body', type: 'array', of: [{type: 'block', of: [{type: 'inlineHighlight'}]}]},
+        ],
+      },
+      {name: 'inlineHighlight', type: 'object', fields: [{name: 'text', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const body = model.classes.find((c) => c.name === 'Body')
+    expect(body?.origin).toBe('portableText')
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'InlineHighlight',
+      relation: 'composition',
+      fieldName: 'inlineHighlight',
+    })
+  })
+
+  it('handles a reference nested in a block `of` as an association edge', () => {
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [{type: 'block', of: [{type: 'reference', to: [{type: 'author'}]}]}],
+          },
+        ],
+      },
+      {name: 'author', type: 'document', fields: [{name: 'name', type: 'string'}]},
+    ]
+    const model = walk(types)
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'Author',
+      relation: 'reference',
+      fieldName: 'author',
+    })
+  })
+
+  it('edges a named annotation object to the portable-text class', () => {
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [{type: 'block', marks: {annotations: [{type: 'footnote'}]}}],
+          },
+        ],
+      },
+      {name: 'footnote', type: 'object', fields: [{name: 'text', type: 'string'}]},
+    ]
+    const model = walk(types)
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'Footnote',
+      relation: 'composition',
+      fieldName: 'footnote',
+    })
+  })
+
+  it('emits an inline-declared annotation as an origin:"inline" class with a composition edge', () => {
+    // The canonical real-world case: a `link` annotation declared inline.
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [
+              {
+                type: 'block',
+                marks: {
+                  annotations: [
+                    {name: 'link', type: 'object', fields: [{name: 'href', type: 'url'}]},
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ]
+    const model = walk(types)
+    const link = model.classes.find((c) => c.name === 'Link')
+    expect(link?.origin).toBe('inline')
+    expect(link?.fields.map((f) => f.name)).toEqual(['href'])
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'Link',
+      relation: 'composition',
+      fieldName: 'link',
+    })
+  })
+
+  it('emits an inline-declared object nested in block `of` as an origin:"inline" class', () => {
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [
+              {
+                type: 'block',
+                of: [{name: 'mention', type: 'object', fields: [{name: 'handle', type: 'string'}]}],
+              },
+            ],
+          },
+        ],
+      },
+    ]
+    const model = walk(types)
+    const mention = model.classes.find((c) => c.name === 'Mention')
+    expect(mention?.origin).toBe('inline')
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'Mention',
+      relation: 'composition',
+      fieldName: 'mention',
+    })
+  })
+
+  it('emits a top-level inline-declared object in a PT `of` as an origin:"inline" class', () => {
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [
+              {type: 'block'},
+              {name: 'pullQuote', type: 'object', fields: [{name: 'quote', type: 'string'}]},
+            ],
+          },
+        ],
+      },
+    ]
+    const model = walk(types)
+    const pq = model.classes.find((c) => c.name === 'PullQuote')
+    expect(pq?.origin).toBe('inline')
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'PullQuote',
+      relation: 'composition',
+      fieldName: 'pullQuote',
+    })
+  })
+
+  it('collects embeds from all three positions into one portable-text class', () => {
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [
+              {
+                type: 'block',
+                of: [{type: 'inlineHighlight'}],
+                marks: {
+                  annotations: [
+                    {name: 'link', type: 'object', fields: [{name: 'href', type: 'url'}]},
+                  ],
+                },
+              },
+              {type: 'calloutBox'},
+            ],
+          },
+        ],
+      },
+      {name: 'inlineHighlight', type: 'object', fields: [{name: 'text', type: 'string'}]},
+      {name: 'calloutBox', type: 'object', fields: [{name: 'tone', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const body = model.classes.find((c) => c.name === 'Body')
+    // block (synthetic) first; then embeds in `of` order: block's inline `of`,
+    // then its annotations, then the top-level calloutBox.
+    expect(body?.fields.map((f) => f.name)).toEqual([
+      'block',
+      'inlineHighlight',
+      'link',
+      'calloutBox',
+    ])
+    const targets = model.edges.filter((e) => e.source === 'Body').map((e) => e.target)
+    expect(targets).toEqual(expect.arrayContaining(['InlineHighlight', 'Link', 'CalloutBox']))
+  })
+
+  it('dedupes a type embedded under multiple block members', () => {
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [
+              {type: 'block', of: [{type: 'inlineHighlight'}]},
+              {type: 'block', of: [{type: 'inlineHighlight'}]},
+            ],
+          },
+        ],
+      },
+      {name: 'inlineHighlight', type: 'object', fields: [{name: 'text', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const body = model.classes.find((c) => c.name === 'Body')
+    expect(body?.fields.filter((f) => f.name === 'inlineHighlight')).toHaveLength(1)
+    expect(
+      model.edges.filter((e) => e.source === 'Body' && e.target === 'InlineHighlight'),
+    ).toHaveLength(1)
+  })
+
+  it('disambiguates inline-declared PT objects sharing a name across documents', () => {
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [
+              {
+                type: 'block',
+                of: [{name: 'footnote', type: 'object', fields: [{name: 'text', type: 'string'}]}],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'note',
+        type: 'document',
+        fields: [
+          {
+            name: 'content',
+            type: 'array',
+            of: [
+              {
+                type: 'block',
+                of: [{name: 'footnote', type: 'object', fields: [{name: 'text', type: 'string'}]}],
+              },
+            ],
+          },
+        ],
+      },
+    ]
+    const model = walk(types)
+    const names = model.classes.map((c) => c.name)
+    expect(names).toContain('BodyFootnote')
+    expect(names).toContain('ContentFootnote')
+    expect(names).not.toContain('Footnote')
+    expect(model.warnings.some((w) => /footnote/i.test(w))).toBe(true)
+  })
+
+  it('leaves bare block-only portable text as a scalar even with empty marks/of', () => {
+    // A plain block with no authored inline objects or annotations must not
+    // promote — guards against accidentally treating Sanity default marks
+    // (which live only in the compiled schema, not _original) as embeds.
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [{name: 'body', type: 'array', of: [{type: 'block'}]}],
+      },
+    ]
+    const model = walk(types)
+    expect(model.classes.map((c) => c.name)).toEqual(['Article'])
+    expect(model.classes[0]?.fields[0]?.char).toEqual({kind: 'portableText'})
   })
 })
