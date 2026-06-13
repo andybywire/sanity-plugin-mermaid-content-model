@@ -115,6 +115,11 @@ jobs:
         with:
           # Full history so semantic-release can analyze every commit since the last release.
           fetch-depth: 0
+          # Persist a PAT (not the default GITHUB_TOKEN) as the git credential, so
+          # @semantic-release/git's changelog/version commit can push to the protected
+          # `main` branch. The default github-actions[bot] cannot bypass branch
+          # protection; the PAT owner (a repo admin, with admins allowed to bypass) can.
+          token: ${{ secrets.GH_TOKEN }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -128,7 +133,12 @@ jobs:
       # requires a trusted publisher configured for this repo + workflow on npmjs.com
       # (set up once after the initial manual publish — OIDC can't publish a brand-new
       # package). Branches that release are defined in .releaserc.json.
+      #
+      # GITHUB_TOKEN here is a PAT (secret GH_TOKEN), not the default Actions token:
+      # semantic-release uses it for the GitHub API *and* for @semantic-release/git's
+      # push of the changelog/version commit to the protected `main` branch, which the
+      # default bot is not allowed to bypass. (npm auth is still OIDC, via id-token.)
       - run: pnpm dlx semantic-release@^25
         if: always()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
