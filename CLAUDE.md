@@ -39,7 +39,7 @@ useSchema() → readSchemaSource → walk → filterModel → emit → MermaidVi
 - **Conventional Commits**, enforced by **commitlint** (a `commit-msg` hook installed by husky on `pnpm install`). `pre-commit` runs lint-staged (eslint + a `tsc --noEmit` pass).
 - **The commit type drives the release:** `fix:` → patch, `feat:` → minor, `feat!:` / `BREAKING CHANGE:` → major; `chore:`/`docs:`/`test:`/`ci:`/`refactor:` → **no release**. Name commits accordingly.
 - **Use `git commit -F <file>`, not `-m`,** for messages containing backticks (zsh eats backtick-quoted spans).
-- **Releases are fully automated — never `npm publish` by hand.** Merging to `main` triggers **semantic-release** over OIDC trusted publishing: version bump, `CHANGELOG.md`, npm publish, GitHub release. `main` is branch-protected (a PR with green checks is required; admins have an escape hatch).
+- **Releases are fully automated — never `npm publish` by hand.** Merging to `main` triggers **semantic-release** over OIDC trusted publishing: version bump, `CHANGELOG.md`, npm publish, GitHub release. `CHANGELOG.md` is **generated — never hand-edit it.** `main` is branch-protected (a PR with green checks is required; admins have an escape hatch).
 - **Feature/fix flow:** branch → PR → green CI → **merge commit** (not squash/rebase). Every commit lands on `main`, so **each commit message must be a clean Conventional Commit** — semantic-release reads them all to build the changelog and decide the release. (This is deliberate: it keeps individual changes legible for collaborators and makes conventional commits a shared habit. Never rebase or force-push `main` — that's what orphans the version tag.)
 
 ## Working on issues
@@ -52,4 +52,4 @@ useSchema() → readSchemaSource → walk → filterModel → emit → MermaidVi
 
 - **`src/`** — plugin: pure modules (`probe`, `walker`, `emit-mermaid`), `schema-adapter`, `build-diagram`, `filter-model`, `elements`, and `tool/` (React components).
 - **`studio/`** — bundled dev Studio (a pnpm workspace member).
-- **`docs/`** — `architecture.md`, `ui-design.md`.
+- **`docs/`** — [`architecture.md`](docs/architecture.md) (pipeline + the Sanity→Mermaid mapping contract), [`ui-design.md`](docs/ui-design.md) (UI design direction, guardrails, deferred-decisions backlog), [`plugin-development.md`](docs/plugin-development.md) (dev-loop, TDD, CI/release methodology), and [`decisions/`](docs/decisions/) — ADRs: [0001](docs/decisions/0001-content-model-mermaid-export.md) (the Mermaid export contract) and [0002](docs/decisions/0002-content-model-plugin-architecture.md) (in-Studio plugin form + the `@internal` `_original` schema source).
