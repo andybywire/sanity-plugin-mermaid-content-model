@@ -44,8 +44,10 @@ useSchema() → readSchemaSource → walk → filterModel → emit → MermaidVi
 
 ## Working on issues
 
-- **GitHub Issues are the active work queue.** Start with `gh issue list` / `gh issue view N`, then plan and implement against that issue.
-- The **"Deferred decisions"** in [docs/ui-design.md](docs/ui-design.md) are the grooming backlog — promote them to issues as they become actionable.
+- **GitHub Issues are the active work queue** — one discrete issue per bug/feature, not evergreen "collector" issues. Start with `gh issue list` / `gh issue view N` (fall back to `gh api repos/<owner>/<repo>/issues/N` if `gh issue view` errors on projects-classic), then plan and implement against that issue.
+- **Default loop:** issue → branch → implement (TDD-first) → PR with **`Closes #N` in the body** → merge commit → the issue auto-closes. Branch naming: `<type>/<issue#>-<slug>` (e.g. `fix/2-pt-inline-embeds`), or `<type>/<slug>` when there's no issue (e.g. `ci/release-pat-bypass`). Not ironclad — incidental maintenance can be a direct PR with no issue.
+- **`Closes #N` in the PR body is what closes the issue** — the branch name (and GitHub's "create a branch for this issue" link) is traceability only; it doesn't auto-close. The keyword closes the issue when the PR merges to `main`, regardless of merge strategy. (The changelog's "closes #N" wording is cosmetic — conventional-changelog rendering — and independent of GitHub's actual close.)
+- The **"Deferred decisions"** in [docs/ui-design.md](docs/ui-design.md) are the grooming backlog — promote them to discrete issues as they become actionable.
 - Plugin-development methodology (TDD cadence, the dev-loop, CI/release lessons) lives in [docs/plugin-development.md](docs/plugin-development.md).
 
 ## Layout

@@ -2,7 +2,7 @@
 
 ## What & why
 
-<!-- One or two sentences. Link the issue: Closes #N (or Refs #N to leave a tracking/batch issue open). -->
+<!-- One or two sentences. Close the issue with a keyword: Closes #N — this is what auto-closes it on merge (the branch name doesn't). -->
 
 ## Release impact
 
