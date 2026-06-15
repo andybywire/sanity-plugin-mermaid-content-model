@@ -51,10 +51,26 @@ Two rejected alternatives:
 - **Primitive field** → `+fieldName: type [cardinality]` in the class body.
 - **Object field** (named composition target or inline anonymous object) → field line **plus** a composition edge `Parent *-- Child` (filled diamond).
 - **Reference field** → field line **plus** an association edge `Parent --> Target` (arrow).
-- **Portable Text** → field-line type label only (`+overview: PortableText [0..1]`); **no** `PortableText` class, no edge.
+- **Portable Text** → depends on contents: **block-only** PT is a scalar label (`+overview: PortableText [0..1]`), no class/edge; PT that **also** carries class-able embeds is promoted to its own class (see *Portable Text* below).
 - **Image-typed top-level objects** → object-stereotype classes, with a synthetic `+asset: url [1]` **prepended** (so the primary content is explicit); Sanity-internal `hotspot`/`crop`/`media` are skipped; user fields follow in declaration order.
 - **Inline anonymous object** → its own object-stereotype class. Naming: bare `pascalCase(fieldName)` unless it collides with a named class or another inline of the same name, in which case all colliding inlines get parent-prefixed (`MethodMetadata`, `DisciplineMetadata`), with one warning per collision group in `model.warnings`.
 - **Custom-validator marker** → `[…, custom]` appended to a field's cardinality when validation can't be fully rendered: `Rule.custom(…)`, other constraints (regex/email/unique/length/…), or `Rule.min/max` on a non-array (value bounds, not cardinality).
+
+### Portable Text
+
+A Portable Text array maps one of two ways, by what it contains:
+
+- **Block-only** (`of: [{type: 'block'}]` — the common `overview`/`body` prose field) → a scalar `+field: PortableText [0..1]` label. No class, no edge; the prose is one opaque value.
+- **Structural** (a `block` member **plus** ≥1 class-able embed) → promoted to its own `«object»` class (origin `portableText`), carrying a synthetic `+block: PortableText [0..*]` field for the prose plus one field per embed; the containing field gets a composition edge to it. The relationship is **two-hop** — `Parent *-- BodyClass *-- Embed` — so embedded types stay connected instead of orphaned.
+
+Embeds are gathered from **all three positions** an embed can occupy, each becoming a composition (object) or association (reference) edge from the PT class:
+- **top-level `of` members** — block-level inserts (a `calloutBox`, a `bodyImage`, a reference);
+- **a block's inline `of`** — inline objects within the text (an `inlineHighlight`);
+- **`marks.annotations`** — objects/references decorating a span (a `link`).
+
+A **named** embed composes to (or references) that type's class. An embed **declared inline** (`{name, type: 'object', fields}`, e.g. a `link` annotation) becomes its own class with origin `inline`, under the same naming/collision policy as inline anonymous objects — so it follows the Elements menu's "inline objects" toggle.
+
+Promotion keys on **explicitly-authored** embeds only: a bare `{type: 'block'}` carries no marks/`of` in the raw authored schema (Sanity's default `link`/decorators live only in the *compiled* type — see [ADR 0002](decisions/0002-content-model-plugin-architecture.md)), so ordinary prose fields stay scalar.
 
 ### Cardinality
 Derived from `Rule.required()` + array status, refined by array `Rule.min`/`Rule.max`:
