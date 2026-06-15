@@ -39,17 +39,19 @@ useSchema() → readSchemaSource → walk → filterModel → emit → MermaidVi
 - **Conventional Commits**, enforced by **commitlint** (a `commit-msg` hook installed by husky on `pnpm install`). `pre-commit` runs lint-staged (eslint + a `tsc --noEmit` pass).
 - **The commit type drives the release:** `fix:` → patch, `feat:` → minor, `feat!:` / `BREAKING CHANGE:` → major; `chore:`/`docs:`/`test:`/`ci:`/`refactor:` → **no release**. Name commits accordingly.
 - **Use `git commit -F <file>`, not `-m`,** for messages containing backticks (zsh eats backtick-quoted spans).
-- **Releases are fully automated — never `npm publish` by hand.** Merging to `main` triggers **semantic-release** over OIDC trusted publishing: version bump, `CHANGELOG.md`, npm publish, GitHub release. `main` is branch-protected (a PR with green checks is required; admins have an escape hatch).
+- **Releases are fully automated — never `npm publish` by hand.** Merging to `main` triggers **semantic-release** over OIDC trusted publishing: version bump, `CHANGELOG.md`, npm publish, GitHub release. `CHANGELOG.md` is **generated — never hand-edit it.** `main` is branch-protected (a PR with green checks is required; admins have an escape hatch).
 - **Feature/fix flow:** branch → PR → green CI → **merge commit** (not squash/rebase). Every commit lands on `main`, so **each commit message must be a clean Conventional Commit** — semantic-release reads them all to build the changelog and decide the release. (This is deliberate: it keeps individual changes legible for collaborators and makes conventional commits a shared habit. Never rebase or force-push `main` — that's what orphans the version tag.)
 
 ## Working on issues
 
-- **GitHub Issues are the active work queue.** Start with `gh issue list` / `gh issue view N`, then plan and implement against that issue.
-- The **"Deferred decisions"** in [docs/ui-design.md](docs/ui-design.md) are the grooming backlog — promote them to issues as they become actionable.
+- **GitHub Issues are the active work queue** — one discrete issue per bug/feature, not evergreen "collector" issues. Start with `gh issue list` / `gh issue view N` (fall back to `gh api repos/<owner>/<repo>/issues/N` if `gh issue view` errors on projects-classic), then plan and implement against that issue.
+- **Default loop:** issue → branch → implement (TDD-first) → PR with **`Closes #N` in the body** → merge commit → the issue auto-closes. Branch naming: `<type>/<issue#>-<slug>` (e.g. `fix/2-pt-inline-embeds`), or `<type>/<slug>` when there's no issue (e.g. `ci/release-pat-bypass`). Not ironclad — incidental maintenance can be a direct PR with no issue.
+- **`Closes #N` in the PR body is what closes the issue** — the branch name (and GitHub's "create a branch for this issue" link) is traceability only; it doesn't auto-close. The keyword closes the issue when the PR merges to `main`, regardless of merge strategy. (The changelog's "closes #N" wording is cosmetic — conventional-changelog rendering — and independent of GitHub's actual close.)
+- The **"Deferred decisions"** in [docs/ui-design.md](docs/ui-design.md) are the grooming backlog — promote them to discrete issues as they become actionable.
 - Plugin-development methodology (TDD cadence, the dev-loop, CI/release lessons) lives in [docs/plugin-development.md](docs/plugin-development.md).
 
 ## Layout
 
 - **`src/`** — plugin: pure modules (`probe`, `walker`, `emit-mermaid`), `schema-adapter`, `build-diagram`, `filter-model`, `elements`, and `tool/` (React components).
 - **`studio/`** — bundled dev Studio (a pnpm workspace member).
-- **`docs/`** — `architecture.md`, `ui-design.md`.
+- **`docs/`** — [`architecture.md`](docs/architecture.md) (pipeline + the Sanity→Mermaid mapping contract), [`ui-design.md`](docs/ui-design.md) (UI design direction, guardrails, deferred-decisions backlog), [`plugin-development.md`](docs/plugin-development.md) (dev-loop, TDD, CI/release methodology), and [`decisions/`](docs/decisions/) — ADRs: [0001](docs/decisions/0001-content-model-mermaid-export.md) (the Mermaid export contract) and [0002](docs/decisions/0002-content-model-plugin-architecture.md) (in-Studio plugin form + the `@internal` `_original` schema source).
