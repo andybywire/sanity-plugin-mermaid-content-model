@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.1.2...v0.2.0) (2026-06-16)
+
+### Features
+
+* move content-model warnings into a popover button ([061217c](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/061217c903215f69b44f4e246a73795685e361ae))
+
 ## [0.1.2](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.1.1...v0.1.2) (2026-06-16)
 
 ### Bug Fixes
