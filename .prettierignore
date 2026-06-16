@@ -2,3 +2,8 @@ dist
 pnpm-lock.yaml
 yarn.lock
 package-lock.json
+
+# Markdown is hand-formatted (deliberate *italic* emphasis style, hand-aligned
+# tables). Prettier would rewrite *italic* -> _italic_ and reflow tables, so it
+# is kept out of all .md files.
+*.md
