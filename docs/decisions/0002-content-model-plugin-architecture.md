@@ -41,7 +41,7 @@ Mitigations bound the downside:
 - The dependency is **isolated to one ~4-line function** (`readSchemaSource`); if `_original` ever changes shape, that file is the only thing to update.
 - `readSchemaSource` **guards** the access: a missing or non-array `_original.types` yields an empty result **plus a human-readable warning** the tool surfaces — graceful, visible degradation, never a silent blank diagram or a crash.
 - A documented **fallback** exists: the compiled `get()` path still renders structure, edges, and plugin types (losing only cardinality precision), so the worst case is *degraded*, not *dead*.
-- **Re-verify the access (and the `_original` shape) when widening the `sanity` peer range.** Current state: the published peer range is `^5`, while the bundled dev studio runs `^6` — a known gap. Reconciling it (widening the peer range to `^6`, re-verifying `_original`) is the **planned pivot to a v1.0 release**, taken once the active bug/feature work settles rather than piecemeal.
+- **Re-verify the access (and the `_original` shape) whenever widening the `sanity` peer range.** Done for v6 in [#3](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/3): the published peer range is now `^5 || ^6`, reconciling the prior gap (peer `^5` vs. a bundled dev studio on `^6`). Verified at the **type and install** level — `tsc` / `pkg-utils build` against Studio 6's types, plus a clean strict-peer install into both a Sanity 5 and a Sanity 6 studio ([`scripts/test-studio-install.mjs`](../../scripts/test-studio-install.mjs)). The **runtime** half — that `_original.types` still carries raw `defineType`s with their `validation` **functions** intact — stays an eyeball step in the release process (render the diagram against a real Studio 6). The same re-verify gates any future major (v7+).
 
 ### Dev loop: serve the plugin from source
 
@@ -53,4 +53,4 @@ The solution here is [`vite-tsconfig-paths`](https://www.npmjs.com/package/vite-
 
 - The **adapter — not the walker — is the single Sanity-coupled seam.** The pure pipeline stays host-agnostic and unit-testable without a DOM.
 - The reliance on `@internal` `_original` is documented here, with guard + fallback, so a future Sanity change degrades visibly rather than catastrophically.
-- Studio target is **Sanity v5+ / React 19**.
+- Studio target is **Sanity v5 and v6 / React 19**.
