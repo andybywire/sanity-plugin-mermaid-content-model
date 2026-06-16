@@ -1587,4 +1587,271 @@ describe('walker', () => {
     expect(model.classes.map((c) => c.name)).toEqual(['Article'])
     expect(model.classes[0]?.fields[0]?.char).toEqual({kind: 'portableText'})
   })
+
+  // Inline image/file fields use the intrinsic `image`/`file` type directly
+  // (`{name: 'avatar', type: 'image'}`) rather than referencing a named
+  // top-level type. A *bare* one is a scalar leaf — the field holds an asset,
+  // not an object the author defined — so it renders as `avatar: image [0..1]`
+  // with no class and no edge. Only an inline image/file carrying its OWN
+  // authored sub-fields (alt/caption) is promoted to an `origin: 'inline'`
+  // class (with the synthetic `asset: url` lead + those fields) and a
+  // composition edge. A *named* image/file type stays a class regardless. See
+  // issue #9.
+  describe('inline image and file fields', () => {
+    it('characterises a bare inline image field as a scalar `image` leaf', () => {
+      const types = [{name: 'author', type: 'document', fields: [{name: 'avatar', type: 'image'}]}]
+      const model = walk(types)
+      // No class is emitted for the image itself.
+      expect(model.classes.map((c) => c.name)).toEqual(['Author'])
+      const avatar = model.classes[0]?.fields.find((f) => f.name === 'avatar')
+      expect(avatar?.char).toEqual({kind: 'primitive', prim: 'image', array: false})
+      expect(avatar?.cardinality).toEqual({min: 0, max: 1})
+    })
+
+    it('characterises a bare inline file field as a scalar `file` leaf', () => {
+      const types = [
+        {name: 'release', type: 'document', fields: [{name: 'download', type: 'file'}]},
+      ]
+      const model = walk(types)
+      expect(model.classes.map((c) => c.name)).toEqual(['Release'])
+      const download = model.classes[0]?.fields.find((f) => f.name === 'download')
+      expect(download?.char).toEqual({kind: 'primitive', prim: 'file', array: false})
+      expect(download?.cardinality).toEqual({min: 0, max: 1})
+    })
+
+    it('emits no class or edge for a bare inline image', () => {
+      const types = [{name: 'author', type: 'document', fields: [{name: 'avatar', type: 'image'}]}]
+      const model = walk(types)
+      expect(model.classes).toHaveLength(1)
+      expect(model.edges).toEqual([])
+    })
+
+    it('characterises an array of bare inline images as a scalar `image` leaf with array cardinality', () => {
+      const types = [
+        {
+          name: 'article',
+          type: 'document',
+          fields: [{name: 'gallery', type: 'array', of: [{type: 'image'}]}],
+        },
+      ]
+      const model = walk(types)
+      expect(model.classes.map((c) => c.name)).toEqual(['Article'])
+      const gallery = model.classes[0]?.fields.find((f) => f.name === 'gallery')
+      expect(gallery?.char).toEqual({kind: 'primitive', prim: 'image', array: true})
+      expect(gallery?.cardinality).toEqual({min: 0, max: '*'})
+    })
+
+    it('honours required validation on a bare inline image leaf', () => {
+      const types = [
+        {
+          name: 'author',
+          type: 'document',
+          fields: [{name: 'avatar', type: 'image', validation: (rule: any) => rule.required()}],
+        },
+      ]
+      const model = walk(types)
+      const avatar = model.classes[0]?.fields.find((f) => f.name === 'avatar')
+      expect(avatar?.cardinality).toEqual({min: 1, max: 1})
+    })
+
+    it('ignores image-internal hotspot/crop/media when deciding a bare image stays scalar', () => {
+      const types = [
+        {
+          name: 'author',
+          type: 'document',
+          fields: [
+            {
+              name: 'avatar',
+              type: 'image',
+              fields: [
+                {name: 'hotspot', type: 'object', fields: []},
+                {name: 'crop', type: 'object', fields: []},
+                {name: 'media', type: 'reference', to: [{type: 'sanity.imageAsset'}]},
+              ],
+            },
+          ],
+        },
+      ]
+      const model = walk(types)
+      // Only internals declared → no authored fields → still a scalar leaf.
+      expect(model.classes.map((c) => c.name)).toEqual(['Author'])
+      const avatar = model.classes[0]?.fields.find((f) => f.name === 'avatar')
+      expect(avatar?.char).toEqual({kind: 'primitive', prim: 'image', array: false})
+    })
+
+    it('promotes an inline image with authored sub-fields to an origin:"inline" class', () => {
+      const types = [
+        {
+          name: 'author',
+          type: 'document',
+          fields: [
+            {
+              name: 'avatar',
+              type: 'image',
+              fields: [
+                {name: 'alt', type: 'string'},
+                {name: 'caption', type: 'string'},
+              ],
+            },
+          ],
+        },
+      ]
+      const model = walk(types)
+      const avatar = model.classes.find((c) => c.name === 'Avatar')
+      expect(avatar?.stereotype).toBe('object')
+      expect(avatar?.origin).toBe('inline')
+      // Synthetic asset leads, then authored fields in declaration order.
+      expect(avatar?.fields.map((f) => f.name)).toEqual(['asset', 'alt', 'caption'])
+      expect(avatar?.fields[0]?.char).toEqual({kind: 'primitive', prim: 'url', array: false})
+      // The parent's field is a composition to the promoted class.
+      const field = model.classes
+        .find((c) => c.name === 'Author')
+        ?.fields.find((f) => f.name === 'avatar')
+      expect(field?.char).toEqual({
+        kind: 'object',
+        target: 'Avatar',
+        relation: 'composition',
+        array: false,
+      })
+      expect(model.edges).toContainEqual({
+        source: 'Author',
+        target: 'Avatar',
+        relation: 'composition',
+        fieldName: 'avatar',
+      })
+    })
+
+    it('skips hotspot/crop/media on a promoted inline image, keeping authored fields', () => {
+      const types = [
+        {
+          name: 'author',
+          type: 'document',
+          fields: [
+            {
+              name: 'avatar',
+              type: 'image',
+              fields: [
+                {name: 'alt', type: 'string'},
+                {name: 'hotspot', type: 'object', fields: []},
+                {name: 'crop', type: 'object', fields: []},
+                {name: 'media', type: 'reference', to: [{type: 'sanity.imageAsset'}]},
+              ],
+            },
+          ],
+        },
+      ]
+      const model = walk(types)
+      const avatar = model.classes.find((c) => c.name === 'Avatar')
+      expect(avatar?.fields.map((f) => f.name)).toEqual(['asset', 'alt'])
+    })
+
+    it('promotes an array of inline images with sub-fields to a class with array cardinality', () => {
+      const types = [
+        {
+          name: 'article',
+          type: 'document',
+          fields: [
+            {
+              name: 'gallery',
+              type: 'array',
+              of: [{type: 'image', fields: [{name: 'alt', type: 'string'}]}],
+            },
+          ],
+        },
+      ]
+      const model = walk(types)
+      const gallery = model.classes.find((c) => c.name === 'Gallery')
+      expect(gallery?.origin).toBe('inline')
+      expect(gallery?.fields.map((f) => f.name)).toEqual(['asset', 'alt'])
+      const field = model.classes
+        .find((c) => c.name === 'Article')
+        ?.fields.find((f) => f.name === 'gallery')
+      expect(field?.char).toEqual({
+        kind: 'object',
+        target: 'Gallery',
+        relation: 'composition',
+        array: true,
+      })
+      expect(field?.cardinality).toEqual({min: 0, max: '*'})
+    })
+
+    it('promotes an inline file with authored sub-fields to an origin:"inline" class', () => {
+      const types = [
+        {
+          name: 'release',
+          type: 'document',
+          fields: [{name: 'download', type: 'file', fields: [{name: 'label', type: 'string'}]}],
+        },
+      ]
+      const model = walk(types)
+      const download = model.classes.find((c) => c.name === 'Download')
+      expect(download?.origin).toBe('inline')
+      expect(download?.fields.map((f) => f.name)).toEqual(['asset', 'label'])
+      expect(model.edges).toContainEqual({
+        source: 'Release',
+        target: 'Download',
+        relation: 'composition',
+        fieldName: 'download',
+      })
+    })
+
+    it('disambiguates two promoted inline images sharing a field name by parent-prefixing both', () => {
+      const types = [
+        {
+          name: 'author',
+          type: 'document',
+          fields: [{name: 'image', type: 'image', fields: [{name: 'alt', type: 'string'}]}],
+        },
+        {
+          name: 'article',
+          type: 'document',
+          fields: [{name: 'image', type: 'image', fields: [{name: 'caption', type: 'string'}]}],
+        },
+      ]
+      const model = walk(types)
+      const classNames = model.classes.map((c) => c.name).sort()
+      expect(classNames).toEqual(['Article', 'ArticleImage', 'Author', 'AuthorImage'])
+      expect(model.edges).toContainEqual({
+        source: 'Author',
+        target: 'AuthorImage',
+        relation: 'composition',
+        fieldName: 'image',
+      })
+      expect(model.edges).toContainEqual({
+        source: 'Article',
+        target: 'ArticleImage',
+        relation: 'composition',
+        fieldName: 'image',
+      })
+    })
+
+    it('keeps a named image type used as a field as a composition to its own class', () => {
+      const types = [
+        {
+          name: 'article',
+          type: 'document',
+          fields: [{name: 'hero', type: 'heroImage'}],
+        },
+        {name: 'heroImage', type: 'image', fields: [{name: 'alt', type: 'string'}]},
+      ]
+      const model = walk(types)
+      const heroImage = model.classes.find((c) => c.name === 'HeroImage')
+      expect(heroImage?.origin).toBe('image')
+      const field = model.classes
+        .find((c) => c.name === 'Article')
+        ?.fields.find((f) => f.name === 'hero')
+      expect(field?.char).toEqual({
+        kind: 'object',
+        target: 'HeroImage',
+        relation: 'composition',
+        array: false,
+      })
+      expect(model.edges).toContainEqual({
+        source: 'Article',
+        target: 'HeroImage',
+        relation: 'composition',
+        fieldName: 'hero',
+      })
+    })
+  })
 })

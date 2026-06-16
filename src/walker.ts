@@ -13,7 +13,15 @@
 import {probe} from './probe'
 
 export type Stereotype = 'document' | 'object'
-export type PrimitiveKind = 'string' | 'number' | 'boolean' | 'url' | 'datetime' | 'geopoint'
+export type PrimitiveKind =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'url'
+  | 'datetime'
+  | 'geopoint'
+  | 'image'
+  | 'file'
 export type Relation = 'composition' | 'reference'
 
 /**
@@ -23,6 +31,14 @@ export type Relation = 'composition' | 'reference'
  * use is "let the user hide all inline objects" or "hide all images";
  * those questions can't be answered from `stereotype` alone since
  * `object`, `image`, and `inline` all render with the `<<object>>` tag.
+ *
+ * `image`/`file` mark *named top-level* asset types (`{name: 'heroImage',
+ * type: 'image', …}`), which list individually in the Elements menu. A *bare*
+ * inline intrinsic image/file field (`{name: 'avatar', type: 'image'}`) is not
+ * a class at all — it's a scalar leaf (`avatar: image [0..1]`). Only an inline
+ * image/file carrying its own authored sub-fields (alt/caption) becomes a
+ * class, and then it's `inline` like an inline object — a dependent that
+ * follows its parent (see issue #9).
  */
 export type ClassOrigin = 'document' | 'object' | 'image' | 'file' | 'inline' | 'portableText'
 
@@ -207,6 +223,12 @@ const SKIP_FIELD_NAMES = new Set([
 //   editorial idea ("a moment in time"), different UI affordance.
 // - `geopoint` keeps its own label — structurally a `{lat, lng}` object,
 //   but at the diagram level it's a leaf value with its own semantic.
+// - `image`/`file` keep their own labels — an intrinsic image/file declared
+//   inline as a field (`{name: 'avatar', type: 'image'}`) is a leaf value:
+//   the field holds an asset, not a nested object the author defined. Only an
+//   image/file carrying its OWN authored sub-fields (alt/caption) is promoted
+//   to a class (see `inlineCompositeFor`); a *named* top-level image/file type
+//   is always a class. See issue #9.
 const PRIMITIVE_TYPES: Record<string, PrimitiveKind> = {
   string: 'string',
   text: 'string',
@@ -218,6 +240,8 @@ const PRIMITIVE_TYPES: Record<string, PrimitiveKind> = {
   date: 'datetime',
   datetime: 'datetime',
   geopoint: 'geopoint',
+  image: 'image',
+  file: 'file',
 }
 
 // Sanity reference variants that all behave the same way for diagram
@@ -623,20 +647,70 @@ interface WalkContext {
 }
 
 /**
- * Detect an inline anonymous object inside a field, either directly
- * (`type: 'object'` with `fields`) or as the inner type of an array
- * (`of: [{type: 'object', fields: [...]}]`). Returns the inline object's
- * raw fields plus whether the field is an array, or null if no inline
- * object is present.
+ * The asset treatment a walked inline composite gets. Image and file inline
+ * fields lead with a synthetic `asset: url`; inline objects don't.
  */
-function inlineObjectFor(field: RawField): {innerFields: RawField[]; array: boolean} | null {
+type InlineAssetType = 'object' | 'image' | 'file'
+
+interface InlineComposite {
+  /** Raw fields of the inline composite — absent for a bare image/file. */
+  innerFields: RawField[] | undefined
+  /** Whether the field holds an array of the composite. */
+  array: boolean
+  /** Drives the synthetic-asset treatment in walkFields (image/file get one). */
+  assetType: InlineAssetType
+}
+
+/**
+ * Whether an intrinsic image/file declared inline carries authored sub-fields
+ * worth surfacing — i.e. any field that survives walkFields' skip rules
+ * (platform metadata, the image-internal hotspot/crop/media, and the synthetic
+ * `asset`). A bare `{type: 'image'}` (or one with only internals) has none, so
+ * it stays a scalar leaf; one with e.g. an `alt` field is promoted to a class.
+ */
+function hasAuthoredAssetFields(fields: RawField[] | undefined): boolean {
+  if (!fields) return false
+  return fields.some(
+    (f) =>
+      !SKIP_FIELD_NAMES.has(f.name) &&
+      !IMAGE_INTERNAL_FIELD_NAMES.has(f.name) &&
+      f.name !== 'asset',
+  )
+}
+
+/**
+ * Detect an inline composite inside a field: an anonymous object
+ * (`type: 'object'` with `fields`) or an intrinsic image/file declared in
+ * place that carries its OWN authored sub-fields (`{type: 'image', fields:
+ * [...]}`) — either directly or as the inner type of an array
+ * (`of: [{type: 'object', fields: [...]}]`). All are anonymous and declared at
+ * the field site, so they emit their own `origin: 'inline'` class. Returns the
+ * composite's raw fields, array-ness, and which asset treatment applies — or
+ * null if none is present.
+ *
+ * A *bare* intrinsic image/file (no authored sub-fields) is NOT an inline
+ * composite: it's a scalar leaf, handled by `characterize` via PRIMITIVE_TYPES.
+ * A *named* image/file type (`{name: 'heroImage', type: 'image', …}`) is also
+ * not inline: a field referencing one by name resolves through `characterize`
+ * to a composition edge against that type's own (origin 'image'/'file') class.
+ */
+function inlineCompositeFor(field: RawField): InlineComposite | null {
   if (field.type === 'object' && field.fields) {
-    return {innerFields: field.fields, array: false}
+    return {innerFields: field.fields, array: false, assetType: 'object'}
+  }
+  if ((field.type === 'image' || field.type === 'file') && hasAuthoredAssetFields(field.fields)) {
+    return {innerFields: field.fields, array: false, assetType: field.type}
   }
   if (field.type === 'array' && field.of) {
     for (const inner of field.of) {
       if (inner.type === 'object' && inner.fields) {
-        return {innerFields: inner.fields, array: true}
+        return {innerFields: inner.fields, array: true, assetType: 'object'}
+      }
+      if (
+        (inner.type === 'image' || inner.type === 'file') &&
+        hasAuthoredAssetFields(inner.fields)
+      ) {
+        return {innerFields: inner.fields, array: true, assetType: inner.type}
       }
     }
   }
@@ -724,7 +798,7 @@ function collectInlineCounts(
       countPortableTextInlineEmbeds(f.of, typeMap, out)
       continue
     }
-    const inline = inlineObjectFor(f)
+    const inline = inlineCompositeFor(f)
     if (inline) {
       const bare = pascalCase(f.name)
       out.set(bare, (out.get(bare) ?? 0) + 1)
@@ -824,10 +898,14 @@ function walkFields(
         continue
       }
 
-      // Inline anonymous object: emit a new class for it, recurse into its
-      // fields, and add a composition edge. Resolution of the class name
-      // honours the disambiguation rule (bare unless colliding).
-      const inline = inlineObjectFor(f)
+      // Inline composite — an anonymous object, or an intrinsic image/file
+      // declared in place: emit a new class for it, recurse into its fields,
+      // and add a composition edge. Resolution of the class name honours the
+      // disambiguation rule (bare unless colliding). All inline composites get
+      // origin 'inline' (dependent — governed by the Inline Objects toggle, not
+      // individually listed); the asset type only drives whether walkFields
+      // prepends the synthetic `asset: url` field (image/file do; object doesn't).
+      const inline = inlineCompositeFor(f)
       if (inline) {
         const className = resolveInlineClassName(f.name, sourceClassName, ctx)
         maybeEmitCollisionWarning(f.name, ctx)
@@ -835,7 +913,7 @@ function walkFields(
           name: className,
           stereotype: 'object',
           origin: 'inline',
-          fields: walkFields(inline.innerFields, className, 'object', ctx),
+          fields: walkFields(inline.innerFields, className, inline.assetType, ctx),
         })
         const char: ObjectChar = {
           kind: 'object',
