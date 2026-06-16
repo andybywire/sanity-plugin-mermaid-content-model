@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.2](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.1.1...v0.1.2) (2026-06-16)
+
+### Bug Fixes
+
+- render inline image and file fields ([26e3cf3](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/26e3cf3ebd5bbaa4dfe7e7395f4eb09c555c8a7c))
+
 ## [0.1.1](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.1.0...v0.1.1) (2026-06-13)
 
 ### Bug Fixes
