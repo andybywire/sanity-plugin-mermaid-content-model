@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.2.0...v0.3.0) (2026-06-16)
+
+### Features
+
+* widen sanity peer range to ^5 || ^6 ([a82a62d](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/a82a62d56b8bf7ec38475e4213d570c2c0cb9e63))
+
 ## [0.2.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.1.2...v0.2.0) (2026-06-16)
 
 ### Features
