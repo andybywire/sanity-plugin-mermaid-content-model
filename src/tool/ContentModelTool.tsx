@@ -16,6 +16,7 @@ import {CopyCodeButton} from './CopyCodeButton'
 import {CopyPngButton} from './CopyPngButton'
 import {ElementsMenu} from './ElementsMenu'
 import {MermaidView} from './MermaidView'
+import {WarningsMenu} from './WarningsMenu'
 import {ZoomControls} from './ZoomControls'
 
 // Pan/zoom scale bounds. min low enough to fit very large diagrams; max high
@@ -94,8 +95,10 @@ export function ContentModelTool(): React.JSX.Element {
             Content Model
           </Text>
           {model && selection && groups && (
-            // Controls, floated right: [Copy Code] [Copy PNG] [Elements].
+            // Controls, floated right: [Warnings] [Copy Code] [Copy PNG] [Elements].
+            // Warnings renders only when there are warnings (it returns null otherwise).
             <Flex gap={2}>
+              <WarningsMenu warnings={warnings} />
               <CopyCodeButton code={mermaid} />
               <CopyPngButton svg={renderedSvg} />
               <ElementsMenu
@@ -124,19 +127,8 @@ export function ContentModelTool(): React.JSX.Element {
           </Box>
         ) : (
           <>
-            {warnings.length > 0 && (
-              <Box paddingX={4} paddingTop={3}>
-                <Card tone="caution" padding={3} radius={2}>
-                  <Stack gap={2}>
-                    {warnings.map((warning, i) => (
-                      <Text key={i} size={1} muted>
-                        {warning}
-                      </Text>
-                    ))}
-                  </Stack>
-                </Card>
-              </Box>
-            )}
+            {/* Non-blocking modeling warnings live behind the top-bar Warnings
+                button (WarningsMenu), not in the work area — see issue #4. */}
             {/* Bounded, overflow-hidden viewport: pan/zoom operates within it. */}
             <Box
               ref={viewportRef}
