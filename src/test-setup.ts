@@ -2,6 +2,7 @@
 // etc.) on vitest's expect. Loaded for every test file via vitest.config.ts;
 // harmless for the pure (non-DOM) suites.
 import '@testing-library/jest-dom/vitest'
+
 import {configure} from '@testing-library/react'
 
 // CI runners (ubuntu in particular) can be several times slower than local, and
@@ -15,14 +16,18 @@ configure({asyncUtilTimeout: 5000})
 // (useMediaIndex) call it. Provide a minimal stub so @sanity/ui components
 // render under jsdom. No-op listeners: tests don't change viewport.
 if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  // No-op listener: tests never change viewport, so these never fire.
+  const noop = () => {
+    /* intentionally empty */
+  }
   window.matchMedia = ((query: string) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
+    addListener: noop,
+    removeListener: noop,
+    addEventListener: noop,
+    removeEventListener: noop,
     dispatchEvent: () => false,
   })) as unknown as typeof window.matchMedia
 }
