@@ -16,6 +16,11 @@ import {defineArrayMember, defineField, defineType, type SchemaTypeDefinition} f
  *   the three positions a PT embed can occupy (see issue #2)
  * - references: document→document (`author`, `relatedArticles`) and
  *   document→concept (`topics` → `skosConcept`)
+ * - the range of image shapes (issue #9): a bare inline image as a scalar leaf
+ *   (`author.avatar`), an array of bare images as a scalar leaf
+ *   (`article.gallery`), an inline image promoted to a class by its own
+ *   sub-fields (`article.coverImage`), and a named image type used as a field
+ *   (`heroImage`, the "Hero Image block" case)
  * - an intentional orphan object (`orphanWidget`) — defined but referenced by
  *   nothing, so "Hide Orphan Objects" has something to act on
  * - validation rules so the probe has real cardinality to recover
@@ -39,6 +44,20 @@ const seo = defineType({
   fields: [
     defineField({name: 'metaTitle', type: 'string', validation: (rule) => rule.max(60)}),
     defineField({name: 'metaDescription', type: 'text', validation: (rule) => rule.max(160)}),
+  ],
+})
+
+// A named image type — its own «object» class with the synthetic asset plus
+// authored fields. Referenced by `article.heroImage`, so it composes in as a
+// class (the "Hero Image block" case from issue #9), distinct from the inline
+// image shapes below.
+const heroImage = defineType({
+  name: 'heroImage',
+  title: 'Hero Image',
+  type: 'image',
+  fields: [
+    defineField({name: 'alt', type: 'string', validation: (rule) => rule.required()}),
+    defineField({name: 'caption', type: 'string'}),
   ],
 })
 
@@ -77,6 +96,21 @@ const article = defineType({
   fields: [
     defineField({name: 'title', type: 'string', validation: (rule) => rule.required()}),
     defineField({name: 'slug', type: 'slug', options: {source: 'title'}}),
+    // Named image type used as a field → composition edge to the HeroImage class.
+    defineField({name: 'heroImage', type: 'heroImage'}),
+    // Inline image carrying its own sub-fields → promoted to an inline class
+    // (CoverImage) with the synthetic asset plus alt/caption.
+    defineField({
+      name: 'coverImage',
+      type: 'image',
+      fields: [
+        defineField({name: 'alt', type: 'string'}),
+        defineField({name: 'caption', type: 'string'}),
+      ],
+    }),
+    // Array of bare inline images → a scalar leaf `gallery: image [0..*]`,
+    // no class (no per-image sub-fields to promote).
+    defineField({name: 'gallery', type: 'array', of: [defineArrayMember({type: 'image'})]}),
     defineField({name: 'seo', type: 'seo'}),
     defineField({
       name: 'author',
@@ -131,6 +165,7 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   article,
   author,
   seo,
+  heroImage,
   inlineHighlight,
   calloutBox,
   orphanWidget,

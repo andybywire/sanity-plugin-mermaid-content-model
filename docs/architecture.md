@@ -20,7 +20,7 @@ useSchema()  →  readSchemaSource  →  walk  →  filterModel  →  emit  → 
 ```
 
 - **`probe.ts`** — Proxy-based introspection of a field's `validation` function. Records every `Rule.*` call *without importing Sanity's Rule class* (coupled to method names only), returning `{required, min, max, hasCustom, hasOtherConstraints}`. This is what recovers real cardinality.
-- **`walker.ts`** — Walks the raw `defineType`-shaped schema array and produces a **`CanonicalModel`** (`{classes, edges, warnings}`). Uses the probe for cardinality; handles type-name skips, inline-alias resolution, image-like classes, inline-anonymous-object naming, edge filtering, and collision warnings.
+- **`walker.ts`** — Walks the raw `defineType`-shaped schema array and produces a **`CanonicalModel`** (`{classes, edges, warnings}`). Uses the probe for cardinality; handles type-name skips, inline-alias resolution, image/file fields (scalar leaf vs. promoted class), inline-anonymous-object naming, edge filtering, and collision warnings.
 - **`filter-model.ts`** — A *pure* transform of the `CanonicalModel`, applied **between** `walk` and `emit`, that drops hidden classes/edges per the Elements selection. Filtering never lives in the walker or emitter. (`elements.ts` computes the selection: reachability, orphans, dependent-object resolution.)
 - **`emit-mermaid.ts`** — Renders a `CanonicalModel` to a Mermaid `classDiagram` string. Pure; no I/O. "Attributes" toggle and theme palette are `emit` **options**, not post-processing.
 - **`build-diagram.ts`** — Orchestrates `readSchemaSource → walk → (filter) → emit`, returning a `DiagramResult`.
@@ -52,7 +52,10 @@ Two rejected alternatives:
 - **Object field** (named composition target or inline anonymous object) → field line **plus** a composition edge `Parent *-- Child` (filled diamond).
 - **Reference field** → field line **plus** an association edge `Parent --> Target` (arrow).
 - **Portable Text** → depends on contents: **block-only** PT is a scalar label (`+overview: PortableText [0..1]`), no class/edge; PT that **also** carries class-able embeds is promoted to its own class (see *Portable Text* below).
-- **Image-typed top-level objects** → object-stereotype classes, with a synthetic `+asset: url [1]` **prepended** (so the primary content is explicit); Sanity-internal `hotspot`/`crop`/`media` are skipped; user fields follow in declaration order.
+- **Image & file fields** → shape-dependent (`file` follows `image` throughout):
+  - A **named top-level** image/file type (`defineType({type: 'image', …})`) is an object-stereotype class (origin `image`/`file`), with a synthetic `+asset: url [1]` **prepended** (so the primary content is explicit); Sanity-internal `hotspot`/`crop`/`media` are skipped; user fields follow in declaration order. A field referencing it composes in (`Parent *-- HeroImage`).
+  - A **bare inline** image/file field (`{name: 'avatar', type: 'image'}`, no authored sub-fields) is a **scalar leaf** — `+avatar: image [0..1]` (label `image`/`file`), no class, no edge: the field holds an asset, not an author-defined object. An array of them is the same leaf with array cardinality (`+gallery: image [0..*]`).
+  - An **inline** image/file **with its own authored sub-fields** (e.g. `alt`/`caption`) is **promoted** to an object-stereotype class with origin `inline` — synthetic `+asset: url [1]` lead plus those fields — and a composition edge, under the same naming/collision policy as an inline anonymous object. (The image-internal `hotspot`/`crop`/`media` don't count as authored sub-fields, so an image carrying only those stays a scalar leaf.)
 - **Inline anonymous object** → its own object-stereotype class. Naming: bare `pascalCase(fieldName)` unless it collides with a named class or another inline of the same name, in which case all colliding inlines get parent-prefixed (`MethodMetadata`, `DisciplineMetadata`), with one warning per collision group in `model.warnings`.
 - **Custom-validator marker** → `[…, custom]` appended to a field's cardinality when validation can't be fully rendered: `Rule.custom(…)`, other constraints (regex/email/unique/length/…), or `Rule.min/max` on a non-array (value bounds, not cardinality).
 
@@ -107,6 +110,7 @@ classDiagram
   class Method:::document {
     <<document>>
     +title: string [1]
+    +avatar: image [0..1]
     +heroImage: HeroImage [0..1]
     +overview: PortableText [0..1]
     +tags: string [2..5]
