@@ -20,6 +20,9 @@ You probably created a visual representation of your content model at some point
 - Customized models can be copied as a PNG or as Mermaid code, allowing you to edit or further transform the document in interoperable Mermaid editors like [Mermaid.ai](https://mermaid.ai), [Mermaid Viewer](https://mermaidviewer.com), and [Mermalaid](https://www.mermalaid.com).
 
 ## Installation
+
+> Compatible with **Sanity Studio v5 and v6** (React 19).
+
 ```
 npm install sanity-plugin-mermaid-content-model
 # or
