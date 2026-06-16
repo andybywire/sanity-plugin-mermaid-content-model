@@ -19,7 +19,7 @@ useSchema() → readSchemaSource → walk → filterModel → emit → MermaidVi
 - **`CanonicalModel` is the seam** — everything upstream produces it, everything downstream consumes it. Extend the model or its pure transforms; don't thread schema details into the React layer.
 - **Guardrails:** filtering is a pure transform applied *between* `walk` and `emit` (never inside either); "attributes" toggle + theme are `emit` *options*; the Elements selection is a resolvable model (room for future per-item defaults); the React component stays a thin renderer; SVG is canonical, PNG derived from it.
 - Host coupling is isolated to one file (`src/schema-adapter.ts`, which reads the `@internal` `_original.types`, guarded).
-- **Full pipeline + the Sanity→Mermaid mapping contract:** [docs/architecture.md](docs/architecture.md). **Design direction + guardrails + deferred decisions:** [docs/ui-design.md](docs/ui-design.md).
+- **Full pipeline + the Sanity→Mermaid mapping contract:** [docs/architecture.md](docs/architecture.md). **Design direction + guardrails:** [docs/ui-design.md](docs/ui-design.md).
 
 ## Development
 
@@ -47,11 +47,10 @@ useSchema() → readSchemaSource → walk → filterModel → emit → MermaidVi
 - **GitHub Issues are the active work queue** — one discrete issue per bug/feature, not evergreen "collector" issues. Start with `gh issue list` / `gh issue view N` (fall back to `gh api repos/<owner>/<repo>/issues/N` if `gh issue view` errors on projects-classic), then plan and implement against that issue.
 - **Default loop:** issue → branch → implement (TDD-first) → PR with **`Closes #N` in the body** → merge commit → the issue auto-closes. Branch naming: `<type>/<issue#>-<slug>` (e.g. `fix/2-pt-inline-embeds`), or `<type>/<slug>` when there's no issue (e.g. `ci/release-pat-bypass`). Not ironclad — incidental maintenance can be a direct PR with no issue.
 - **`Closes #N` in the PR body is what closes the issue** — the branch name (and GitHub's "create a branch for this issue" link) is traceability only; it doesn't auto-close. The keyword closes the issue when the PR merges to `main`, regardless of merge strategy. (The changelog's "closes #N" wording is cosmetic — conventional-changelog rendering — and independent of GitHub's actual close.)
-- The **"Deferred decisions"** in [docs/ui-design.md](docs/ui-design.md) are the grooming backlog — promote them to discrete issues as they become actionable.
 - Plugin-development methodology (TDD cadence, the dev-loop, CI/release lessons) lives in [docs/plugin-development.md](docs/plugin-development.md).
 
 ## Layout
 
 - **`src/`** — plugin: pure modules (`probe`, `walker`, `emit-mermaid`), `schema-adapter`, `build-diagram`, `filter-model`, `elements`, and `tool/` (React components).
 - **`studio/`** — bundled dev Studio (a pnpm workspace member).
-- **`docs/`** — [`architecture.md`](docs/architecture.md) (pipeline + the Sanity→Mermaid mapping contract), [`ui-design.md`](docs/ui-design.md) (UI design direction, guardrails, deferred-decisions backlog), [`plugin-development.md`](docs/plugin-development.md) (dev-loop, TDD, CI/release methodology), and [`decisions/`](docs/decisions/) — ADRs: [0001](docs/decisions/0001-content-model-mermaid-export.md) (the Mermaid export contract) and [0002](docs/decisions/0002-content-model-plugin-architecture.md) (in-Studio plugin form + the `@internal` `_original` schema source).
+- **`docs/`** — [`architecture.md`](docs/architecture.md) (pipeline + the Sanity→Mermaid mapping contract), [`ui-design.md`](docs/ui-design.md) (UI design direction, guardrails), [`plugin-development.md`](docs/plugin-development.md) (dev-loop, TDD, CI/release methodology), and [`decisions/`](docs/decisions/) — ADRs: [0001](docs/decisions/0001-content-model-mermaid-export.md) (the Mermaid export contract), [0002](docs/decisions/0002-content-model-plugin-architecture.md) (in-Studio plugin form + the `@internal` `_original` schema source), and [0003](docs/decisions/0003-v1-release-criteria.md) (the v1.0 release criteria).
