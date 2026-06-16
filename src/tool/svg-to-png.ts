@@ -3,8 +3,7 @@
 // Browser-only (Image, canvas, blob URLs) — not exercised in jsdom; verified by
 // the live eyeball check. Used by the "Copy PNG" control. Renders at 2x for a
 // crisp raster and fills a white background so the PNG pastes cleanly onto any
-// surface. (Dark-mode contrast on a white background is a known rough edge tied
-// to the deferred theming work — see docs/ui-design.md.)
+// surface. (Dark-mode contrast on a white background is a known rough edge.)
 
 const SCALE = 2
 const BACKGROUND = '#ffffff'
