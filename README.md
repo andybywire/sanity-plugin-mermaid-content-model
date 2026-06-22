@@ -46,10 +46,6 @@ export default defineConfig({
 })
 ```
 
-## License
-
-[MIT](LICENSE) © Andy Fitzgerald
-
 ## Development
 
 This repo bundles a dev Studio as a workspace member (`studio/`). Run it and open the **Content Model** tool:
@@ -57,6 +53,8 @@ This repo bundles a dev Studio as a workspace member (`studio/`). Run it and ope
 ```
 pnpm dev
 ```
+
+See [UI Design](docs/ui-design.md) and [Architecture](docs/architecture.md) docs for details on plugin design intent and functional composition. 
 
 ### Scripts
 
@@ -67,8 +65,6 @@ pnpm dev
 | `pnpm typecheck`  | `tsc --noEmit` against `src` + configs. |
 | `pnpm build`      | Build `dist/` with `@sanity/pkg-utils`. |
 
+## License
 
-
-- See [UI Design](docs/ui-design.md) and [Architecture](docs/architecture.md) docs for details on plugin design intent and functional composition. 
-- See [Testing a plugin in Sanity Studio](https://github.com/sanity-io/plugin-kit#testing-a-plugin-in-sanity-studio)
-for instructions on how to run this plugin with hot-reload in a standalone studio.
+[MIT](LICENSE) © Andy Fitzgerald
