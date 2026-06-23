@@ -8,6 +8,17 @@ The deeper "how and why" behind this repo's development practices. [CLAUDE.md](.
 - **Three-tsconfig split:** `tsconfig.settings.json` (shared, strict — `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`), `tsconfig.json` (dev/typecheck: src + configs), `tsconfig.dist.json` (build: src minus tests).
 - **Pure core + thin component shell.** All logic lives in pure, framework-free modules composed through one canonical type (`CanonicalModel`). React components only wire Studio context (`useSchema`, theme, clipboard, toasts) to those pure functions, so most code is testable without a DOM. Host coupling is isolated to one adapter (`schema-adapter.ts`) — see [ADR 0002](decisions/0002-content-model-plugin-architecture.md).
 
+## Diagnostic strategy: render as-authored, flag the smells
+
+The plugin is a **faithful mirror with a diagnostic layer** — not a linter that rewrites the schema. Both halves are load-bearing, and new work should preserve them:
+
+- **Render the model as it was authored.** Don't silently "fix" or hide a modeling misstep: a model that's confusing in the diagram is usually confusing in the Studio too, and papering over it helps no one. When a rendering constraint _forces_ a deviation — e.g. Mermaid merges two same-named `class` blocks into one box — keep the result faithful and traceable rather than lossy: disambiguate visibly (the base-first `Body_Article` qualifier) instead of merging the distinction away.
+- **Flag the smells as non-blocking "Potential Issues."** Anything the walker notices but can't call _wrong_ — a name collision, a field name reused with different shapes across types, an edge dropped because its target is filtered or undeclared — is pushed to `model.warnings` and surfaced by the `WarningsMenu`. Warnings annotate the diagram; they never block it.
+
+**Why this is a core value-add, not a nicety:** users (and the types other plugins contribute) will make modeling missteps, and the not-technically-wrong ones are exactly what no other tool flags. Surfacing them helps the next teammate — and, increasingly, the AI agents asked to reason about or act on a schema on the user's behalf — navigate the model with less ambiguity. Silent auto-correction would hide the very information worth knowing.
+
+**How to apply it when adding features:** any new walker behavior that meets an imperfect or ambiguous schema should prefer _faithful render + a clear, actionable warning_ over silent normalization. Keep warning copy type-agnostic and suggest the fix ("consider giving them unique names"), and emit one warning per collision/occurrence group so the menu stays readable. This is the development-side counterpart to the design direction in [ui-design.md](ui-design.md); where warnings sit in the pipeline is documented in [architecture.md](architecture.md).
+
 ## The dev loop
 
 `pnpm dev` runs the bundled `studio/` and serves the plugin's `src/` live with HMR via [`vite-tsconfig-paths`](https://www.npmjs.com/package/vite-tsconfig-paths). **Why this is needed (the gotcha):** `sanity dev`/`sanity build` use Vite, which ignores the package's `source` export condition and resolves to the stale built `dist/index.js` — so without the tsconfig-paths alias, `src/` edits don't show up. Full rationale (and why `source` can't just be added to Vite's global `resolve.conditions`) is in [ADR 0002 § Dev loop](decisions/0002-content-model-plugin-architecture.md).
