@@ -8,7 +8,7 @@ afterEach(() => cleanup())
 
 const warnings = [
   "Edge for field 'author' on Article dropped — target type 'person' is filtered or not declared.",
-  "Inline object 'caption' appears in multiple classes; emitted with parent prefix to disambiguate.",
+  "More than one object is derived from the name 'caption'. Each is qualified by an underscore and its parent to keep them distinct in the diagram — consider giving them unique names.",
 ]
 
 describe('WarningsMenu', () => {
