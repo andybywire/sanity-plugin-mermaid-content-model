@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.1](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.3.0...v0.3.1) (2026-06-23)
+
+### Bug Fixes
+
+* render Portable Text embeds faithfully (issue [#23](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/23)) ([85706a0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/85706a0e4a946e350d237dc1536cbf2696d0065b))
+
 ## [0.3.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.2.0...v0.3.0) (2026-06-16)
 
 ### Features
