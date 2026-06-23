@@ -1,5 +1,4 @@
 import {defineCliConfig} from 'sanity/cli'
-import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineCliConfig({
   api: {
@@ -13,6 +12,6 @@ export default defineCliConfig({
   // export condition on its own, and a global `source` condition would also
   // pull @sanity/ui from source.)
   vite: {
-    plugins: [tsconfigPaths()],
+    resolve: {tsconfigPaths: true},
   },
 })
