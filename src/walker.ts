@@ -328,7 +328,26 @@ function resolveNamedType(
 }
 
 /** How an embed member of a portable-text array maps to the diagram. */
-type EmbedKind = 'reference' | 'namedClass' | 'inlineObject'
+type EmbedKind = 'reference' | 'namedClass' | 'inlineComposite'
+
+/**
+ * If a portable-text embed member is a class-emitting inline composite — an
+ * inline object (`{name, type: 'object', fields}`), or an inline image/file
+ * carrying its own authored sub-fields (`{type: 'image', fields}`) — return its
+ * asset treatment ('object' | 'image' | 'file'), else null. The array-member
+ * analogue of `inlineCompositeFor`, and the reason image/file members aren't
+ * dropped by the `PRIMITIVE_TYPES` short-circuit below (issue #23).
+ */
+function inlineEmbedAssetType(member: RawArrayMember): InlineAssetType | null {
+  if (member.type === 'object' && member.fields && member.name) return 'object'
+  if (
+    (member.type === 'image' || member.type === 'file') &&
+    hasAuthoredAssetFields(member.fields)
+  ) {
+    return member.type
+  }
+  return null
+}
 
 /**
  * Classify a candidate portable-text embed member. Returns null for
@@ -339,26 +358,38 @@ type EmbedKind = 'reference' | 'namedClass' | 'inlineObject'
  *   target → association edge.
  * - `namedClass` — a member whose `type` names a kept document/object/image
  *   class → composition edge to that class.
- * - `inlineObject` — an inline-declared object (`{name, type: 'object',
- *   fields}`) that isn't a named top-level type → emits its own
- *   `origin: 'inline'` class, named by the member's `name`.
+ * - `inlineComposite` — an inline-declared object (`{name, type: 'object',
+ *   fields}`) or an inline image/file with its own authored sub-fields
+ *   (`{type: 'image', fields}`) → emits its own `origin: 'inline'` class. The
+ *   composite check runs *before* the primitive short-circuit, since `image`/
+ *   `file` are in `PRIMITIVE_TYPES` and would otherwise be dropped (issue #23).
  */
 function classifyEmbedMember(
   member: RawArrayMember,
   typeMap: Map<string, RawType>,
 ): EmbedKind | null {
+  if (inlineEmbedAssetType(member)) return 'inlineComposite'
   if (PRIMITIVE_TYPES[member.type]) return null
   if (REFERENCE_TYPES.has(member.type)) {
     return firstReferenceTarget(member.to) ? 'reference' : null
   }
-  // Inline-declared object/annotation: declared in place with its own
-  // `name` and `fields`, rather than referencing a named top-level type.
-  if (member.type === 'object' && member.fields && member.name) {
-    return 'inlineObject'
-  }
   const named = typeMap.get(member.type)
   if (named && isClassType(named)) return 'namedClass'
   return null
+}
+
+/**
+ * If an embed member is a *bare* inline image/file (an intrinsic image/file with
+ * no authored sub-fields), return its primitive label. It isn't class-able, but
+ * it's authored content the body can hold, so it surfaces as a scalar leaf field
+ * on the PT class (no class, no edge) — like a bare image field elsewhere. An
+ * image/file *with* fields is class-able (`inlineEmbedAssetType`) and handled
+ * there; anything else returns null. See issue #23.
+ */
+function bareAssetLeaf(member: RawArrayMember): PrimitiveKind | null {
+  if (inlineEmbedAssetType(member)) return null
+  const prim = PRIMITIVE_TYPES[member.type]
+  return prim === 'image' || prim === 'file' ? prim : null
 }
 
 /**
@@ -398,17 +429,17 @@ function collectPortableTextEmbedMembers(of: RawArrayMember[]): RawArrayMember[]
 
 /**
  * Detect "structural portable text": an array whose `of` contains `block`
- * AND at least one class-able embed — anywhere an embed can live (top-level
- * members, inline objects in a block's `of`, or `marks.annotations`).
- * Returns the list of class-able embed members if so, or null if `of` isn't
- * portable text at all or carries no embeds.
+ * AND at least one surfaced non-block member — a class-able embed (named/inline
+ * object, reference, image/file with fields) or a bare image/file leaf — from
+ * anywhere an embed can live (top-level members, inline objects in a block's
+ * `of`, or `marks.annotations`). Returns those members if so, else null when
+ * `of` isn't portable text or carries nothing the diagram surfaces.
  *
- * Block-only portable text stays as scalar `PortableTextChar` (used for
- * the common case of inline `overview` / `colophon` fields). Structural
- * portable text gets promoted to its own class so embedded types stay
- * connected to the diagram via their natural two-hop relationship
- * (parent → portable-text wrapper → embedded type) rather than being
- * dropped as orphans.
+ * Truly block-only portable text (just `[{type: 'block'}]`) stays a scalar
+ * `PortableTextChar` — the common `overview` / `colophon` prose case. Anything
+ * the body can also hold promotes it to its own class, so embedded types stay
+ * connected via their two-hop relationship (parent → PT wrapper → embed) rather
+ * than dropped as orphans, and bare assets stay visible (issue #23).
  */
 function structuralPortableTextEmbeds(
   of: RawArrayMember[] | undefined,
@@ -416,7 +447,7 @@ function structuralPortableTextEmbeds(
 ): RawArrayMember[] | null {
   if (!of || !of.some((m) => m.type === 'block')) return null
   const embeds = collectPortableTextEmbedMembers(of).filter(
-    (m) => classifyEmbedMember(m, typeMap) !== null,
+    (m) => classifyEmbedMember(m, typeMap) !== null || bareAssetLeaf(m) !== null,
   )
   return embeds.length > 0 ? embeds : null
 }
@@ -452,7 +483,21 @@ function buildPortableTextClassFields(
   const fields: CanonicalField[] = [syntheticBlockField()]
   for (const member of collectPortableTextEmbedMembers(of)) {
     const kind = classifyEmbedMember(member, ctx.typeMap)
-    if (!kind) continue
+    if (!kind) {
+      // A bare image/file member isn't class-able, but it's authored content the
+      // body can hold — surface it as a scalar leaf field (no class, no edge),
+      // like a bare image field elsewhere. Named by member name, else the type.
+      const leafPrim = bareAssetLeaf(member)
+      if (leafPrim) {
+        fields.push({
+          name: member.name ?? member.type,
+          char: {kind: 'primitive', prim: leafPrim, array: true},
+          cardinality: {min: 0, max: '*'},
+          hasCustomMarker: false,
+        })
+      }
+      continue
+    }
 
     let char: ObjectChar
     let fieldName: string
@@ -466,19 +511,25 @@ function buildPortableTextClassFields(
     } else if (kind === 'namedClass') {
       const named = ctx.typeMap.get(member.type) as RawType
       char = {kind: 'object', target: pascalCase(named.name), relation: 'composition', array: true}
-      fieldName = member.type
+      // Name the field by the member's own `name` when it carries one
+      // (`{name: 'pre', type: 'code'}` → `pre`), falling back to the type name
+      // for a bare `{type: 'bodyImage'}`. The edge still targets the class.
+      fieldName = member.name ?? member.type
     } else {
-      // Inline-declared object/annotation: emit a class for it, named by its
-      // own `name` under the inline disambiguation rule (bare unless it
-      // collides with a named class or another inline of the same name).
-      const memberName = member.name as string
+      // Inline-declared composite: an object/annotation, or an inline image/file
+      // carrying its own fields. Emit an `origin: 'inline'` class under the
+      // disambiguation rule; the asset type drives whether walkFields prepends
+      // the synthetic `asset` (image/file do, object doesn't). A nameless
+      // image/file member falls back to its type name for naming (issue #23).
+      const assetType = inlineEmbedAssetType(member) as InlineAssetType
+      const memberName = member.name ?? member.type
       const className = resolveInlineClassName(memberName, ptClassName, ctx)
       maybeEmitCollisionWarning(memberName, ctx)
       ctx.classes.push({
         name: className,
         stereotype: 'object',
         origin: 'inline',
-        fields: walkFields(member.fields, className, 'object', ctx),
+        fields: walkFields(member.fields, className, assetType, ctx),
       })
       char = {kind: 'object', target: className, relation: 'composition', array: true}
       fieldName = memberName
@@ -718,10 +769,15 @@ function inlineCompositeFor(field: RawField): InlineComposite | null {
 }
 
 /**
- * Resolve the class name for an inline anonymous object. Uses the bare
- * pascalCase of the field name unless it would collide with another inline
- * (same bare name elsewhere) or a named class — in which case it gets
- * parent-prefixed (`MethodMetadata`).
+ * Resolve the class name for a field-derived anonymous object (inline object,
+ * inline image/file, or a structural Portable Text field). Uses the bare
+ * pascalCase of the field name unless it would collide with another such object
+ * (same bare name elsewhere) or a named class — in which case it's qualified by
+ * its parent, base-first (`Metadata_Method`, `Body_Article`).
+ *
+ * Base-first keeps the base name readable; the `_` separator guarantees the
+ * qualified name can never clash with a real type's class name, because
+ * `pascalCase` strips `_`/`-`/`.` and so never emits an underscore itself.
  */
 function resolveInlineClassName(
   fieldName: string,
@@ -732,7 +788,7 @@ function resolveInlineClassName(
   const collidesWithNamed = ctx.namedClassNames.has(bare)
   const multipleInlines = (ctx.inlineCounts.get(bare) ?? 0) > 1
   if (collidesWithNamed || multipleInlines) {
-    return parentClassName + bare
+    return `${bare}_${parentClassName}`
   }
   return bare
 }
@@ -746,23 +802,24 @@ function maybeEmitCollisionWarning(fieldName: string, ctx: WalkContext): void {
 
   if (collidesWithNamed && inlineCount > 0) {
     ctx.warnings.push(
-      `Inline object '${fieldName}' collides with named class '${bare}'; emitted with parent prefix.`,
+      `An object derived from '${fieldName}' shares the name of the named type '${bare}'. The derived one is qualified by an underscore and its parent to keep them distinct — consider renaming one.`,
     )
     ctx.collisionWarningsEmitted.add(bare)
   } else if (inlineCount > 1) {
     ctx.warnings.push(
-      `Inline object '${fieldName}' appears in multiple classes; emitted with parent prefix to disambiguate.`,
+      `More than one object is derived from the name '${fieldName}'. Each is qualified by an underscore and its parent to keep them distinct in the diagram — consider giving them unique names.`,
     )
     ctx.collisionWarningsEmitted.add(bare)
   }
 }
 
 /**
- * Count the inline-declared object/annotation embeds of a portable-text
- * `of` array by bare name (recursing into their own fields), so they share
- * the same collision-disambiguation policy as field-declared inline
- * objects. Named-type and reference embeds emit no class, so they aren't
- * counted here.
+ * Count the inline-composite embeds of a portable-text `of` array by bare name
+ * (recursing into their own fields), so they share the same collision-
+ * disambiguation policy as field-declared inline composites. Covers inline
+ * objects/annotations and inline image/file members with their own fields
+ * (named by member name, or the type name when nameless). Named-type and
+ * reference embeds emit no class, so they aren't counted here.
  */
 function countPortableTextInlineEmbeds(
   of: RawArrayMember[],
@@ -770,8 +827,8 @@ function countPortableTextInlineEmbeds(
   out: Map<string, number>,
 ): void {
   for (const member of collectPortableTextEmbedMembers(of)) {
-    if (classifyEmbedMember(member, typeMap) !== 'inlineObject') continue
-    const bare = pascalCase(member.name as string)
+    if (classifyEmbedMember(member, typeMap) !== 'inlineComposite') continue
+    const bare = pascalCase(member.name ?? member.type)
     out.set(bare, (out.get(bare) ?? 0) + 1)
     collectInlineCounts(member.fields, typeMap, out)
   }
@@ -780,7 +837,7 @@ function countPortableTextInlineEmbeds(
 /**
  * Recursively count how often each inline-object bare name appears across
  * the schema. Used by `resolveInlineClassName` to decide which inlines
- * need parent-prefixing. Counts both field-declared inline objects and
+ * need a parent qualifier. Counts both field-declared inline objects and
  * inline-declared objects/annotations embedded in portable text.
  */
 function collectInlineCounts(
@@ -795,6 +852,13 @@ function collectInlineCounts(
     // walkFields), so a PT field's inline embeds are counted by their own
     // member name rather than by the field name.
     if (f.type === 'array' && f.of?.some((m) => m.type === 'block')) {
+      // A *structural* PT field promotes to a class named after the field, so
+      // count it like an inline composite — two `body` fields must disambiguate
+      // rather than silently merge (issue #23). Block-only PT emits no class.
+      if (structuralPortableTextEmbeds(f.of, typeMap)) {
+        const bare = pascalCase(f.name)
+        out.set(bare, (out.get(bare) ?? 0) + 1)
+      }
       countPortableTextInlineEmbeds(f.of, typeMap, out)
       continue
     }

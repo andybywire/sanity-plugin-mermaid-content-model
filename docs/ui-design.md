@@ -8,6 +8,7 @@ Evergreen design direction and architectural guardrails for the in-Studio Conten
 - **Portable emitted Mermaid.** A goal is that `Copy Code` output renders well in other Mermaid apps (mermaid.live, GitHub, etc.) **without app-specific config**. This constrains theming: box palettes are emitted as standard `classDef` lines; avoid `themeVariables` / `base`-theme tricks that only render in-app.
 - **Follow Studio's colour scheme; no in-plugin theme controls.** The tool reads `useRootTheme().scheme` and re-renders live on light/dark switch — it doesn't introduce its own theme UI.
 - **Dependent objects follow their parent.** Inline and Portable Text objects are inherently part of whatever contains them, so they have no independent visibility toggle — they show only when reachable from a visible document. (Named objects toggle individually; this asymmetry is intentional.)
+- **Mirror the schema, then flag its smells.** The diagram renders the model as authored — modeling missteps and all — and surfaces them as non-blocking "Potential Issues" rather than silently correcting them. The full statement of this strategy, and how to apply it to new work, lives in [plugin-development.md](plugin-development.md#diagnostic-strategy-render-as-authored-flag-the-smells).
 
 ## Architecture guardrails (so later phases stay cheap)
 

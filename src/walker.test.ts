@@ -580,7 +580,7 @@ describe('walker', () => {
     expect(sourcesClass?.fields.map((f) => f.name)).toEqual(['name', 'url'])
   })
 
-  it('disambiguates two inline objects sharing a field name by parent-prefixing both', () => {
+  it('disambiguates two inline objects sharing a field name by qualifying both with their parent', () => {
     const types = [
       {
         name: 'method',
@@ -607,17 +607,17 @@ describe('walker', () => {
     ]
     const model = walk(types)
     const classNames = model.classes.map((c) => c.name).sort()
-    expect(classNames).toEqual(['Discipline', 'DisciplineMetadata', 'Method', 'MethodMetadata'])
-    // Each parent links to its own prefixed inline class.
+    expect(classNames).toEqual(['Discipline', 'Metadata_Discipline', 'Metadata_Method', 'Method'])
+    // Each parent links to its own parent-qualified inline class.
     expect(model.edges).toContainEqual({
       source: 'Method',
-      target: 'MethodMetadata',
+      target: 'Metadata_Method',
       relation: 'composition',
       fieldName: 'metadata',
     })
     expect(model.edges).toContainEqual({
       source: 'Discipline',
-      target: 'DisciplineMetadata',
+      target: 'Metadata_Discipline',
       relation: 'composition',
       fieldName: 'metadata',
     })
@@ -642,7 +642,7 @@ describe('walker', () => {
     expect(model.warnings.some((w) => w.includes("'metadata'"))).toBe(true)
   })
 
-  it('parent-prefixes an inline object when its bare name collides with a named class', () => {
+  it('qualifies an inline object by its parent when its bare name collides with a named class', () => {
     const types = [
       {name: 'metadata', type: 'object', fields: [{name: 'global', type: 'string'}]},
       {
@@ -658,12 +658,12 @@ describe('walker', () => {
       },
     ]
     const model = walk(types)
-    // The named Metadata keeps its bare name; the inline gets parent-prefixed.
+    // The named Metadata keeps its bare name; the inline gets a parent qualifier.
     expect(model.classes.find((c) => c.name === 'Metadata')?.fields.map((f) => f.name)).toEqual([
       'global',
     ])
     expect(
-      model.classes.find((c) => c.name === 'MethodMetadata')?.fields.map((f) => f.name),
+      model.classes.find((c) => c.name === 'Metadata_Method')?.fields.map((f) => f.name),
     ).toEqual(['local'])
   })
 
@@ -1235,6 +1235,46 @@ describe('walker', () => {
     expect(notes?.fields.map((f) => f.name)).toEqual(['block', 'bodyImage'])
   })
 
+  it('disambiguates two structural portable-text fields sharing a name, with a warning', () => {
+    // Two documents each declaring a `body` structural PT field both derive the
+    // class name `Body`; left alone they would silently merge into one box in
+    // Mermaid. They are distinct objects, so each is qualified by its parent
+    // (`Body_Article` / `Body_Page`) and the collision is flagged as a
+    // potential issue (issue #23 — display as-created, then call it out).
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [{name: 'body', type: 'array', of: [{type: 'block'}, {type: 'calloutBox'}]}],
+      },
+      {
+        name: 'page',
+        type: 'document',
+        fields: [{name: 'body', type: 'array', of: [{type: 'block'}, {type: 'calloutBox'}]}],
+      },
+      {name: 'calloutBox', type: 'object', fields: [{name: 'tone', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const ptClasses = model.classes
+      .filter((c) => c.origin === 'portableText')
+      .map((c) => c.name)
+      .sort()
+    expect(ptClasses).toEqual(['Body_Article', 'Body_Page'])
+    expect(model.edges).toContainEqual({
+      source: 'Article',
+      target: 'Body_Article',
+      relation: 'composition',
+      fieldName: 'body',
+    })
+    expect(model.edges).toContainEqual({
+      source: 'Page',
+      target: 'Body_Page',
+      relation: 'composition',
+      fieldName: 'body',
+    })
+    expect(model.warnings.some((w) => w.includes("'body'"))).toBe(true)
+  })
+
   it('keeps inline block-only portable text as scalar PortableText, no class', () => {
     const types = [
       {
@@ -1368,6 +1408,37 @@ describe('walker', () => {
     })
   })
 
+  it('names a named-type embed field by its member name, not its type', () => {
+    // A named type embedded under a member name of its own (`{name: 'pre',
+    // type: 'code'}` — the @sanity/code-input case) should surface as a field
+    // named `pre` (the author's chosen name), not `code` (the type name). The
+    // edge still targets the type's class (`Code`). Without a member name the
+    // field falls back to the type, so `{type: 'bodyImage'}` stays `bodyImage`.
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [{name: 'body', type: 'array', of: [{type: 'block'}, {name: 'pre', type: 'code'}]}],
+      },
+      {name: 'code', type: 'object', fields: [{name: 'language', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const body = model.classes.find((c) => c.name === 'Body')
+    expect(body?.fields.map((f) => f.name)).toEqual(['block', 'pre'])
+    expect(body?.fields.find((f) => f.name === 'pre')?.char).toEqual({
+      kind: 'object',
+      target: 'Code',
+      relation: 'composition',
+      array: true,
+    })
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'Code',
+      relation: 'composition',
+      fieldName: 'pre',
+    })
+  })
+
   it('emits an inline-declared annotation as an origin:"inline" class with a composition edge', () => {
     // The canonical real-world case: a `link` annotation declared inline.
     const types = [
@@ -1460,6 +1531,166 @@ describe('walker', () => {
       relation: 'composition',
       fieldName: 'pullQuote',
     })
+  })
+
+  it('promotes an inline image embed with its own fields to an origin:"inline" class', () => {
+    // An inline image declared in a PT array with authored sub-fields is
+    // class-able, exactly like an inline image *field* (issue #9). It must be
+    // promoted — not silently dropped just because `image` is an intrinsic
+    // primitive type (the issue #23 bug). Synthetic `asset` leads, then the
+    // authored sub-fields; the relationship is two-hop (Article *-- Body *-- it).
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [
+              {type: 'block'},
+              {name: 'bodyImage', type: 'image', fields: [{name: 'altText', type: 'string'}]},
+            ],
+          },
+        ],
+      },
+    ]
+    const model = walk(types)
+    const bodyImage = model.classes.find((c) => c.name === 'BodyImage')
+    expect(bodyImage?.origin).toBe('inline')
+    expect(bodyImage?.fields.map((f) => f.name)).toEqual(['asset', 'altText'])
+    expect(bodyImage?.fields[0]?.char).toEqual({kind: 'primitive', prim: 'url', array: false})
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'BodyImage',
+      relation: 'composition',
+      fieldName: 'bodyImage',
+    })
+    expect(model.edges).toContainEqual({
+      source: 'Article',
+      target: 'Body',
+      relation: 'composition',
+      fieldName: 'body',
+    })
+  })
+
+  it('names a nameless inline image embed by its type (the issue #23 shape)', () => {
+    // A nameless `{type: 'image', fields: [...]}` member has no member name, so
+    // both the field and class fall back to the type name `image` → `Image`.
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [{type: 'block'}, {type: 'image', fields: [{name: 'altText', type: 'string'}]}],
+          },
+        ],
+      },
+    ]
+    const model = walk(types)
+    expect(model.classes.find((c) => c.name === 'Image')?.origin).toBe('inline')
+    const body = model.classes.find((c) => c.name === 'Body')
+    expect(body?.fields.map((f) => f.name)).toEqual(['block', 'image'])
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'Image',
+      relation: 'composition',
+      fieldName: 'image',
+    })
+  })
+
+  it('promotes an inline file embed with its own fields to an origin:"inline" class', () => {
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [
+              {type: 'block'},
+              {name: 'attachment', type: 'file', fields: [{name: 'label', type: 'string'}]},
+            ],
+          },
+        ],
+      },
+    ]
+    const model = walk(types)
+    const attachment = model.classes.find((c) => c.name === 'Attachment')
+    expect(attachment?.origin).toBe('inline')
+    expect(attachment?.fields.map((f) => f.name)).toEqual(['asset', 'label'])
+  })
+
+  it('promotes a PT with a bare inline image embed, showing it as a scalar leaf field', () => {
+    // A fields-less inline image isn't class-able, but it's authored content the
+    // body can hold, so it makes the PT structural and surfaces as a scalar
+    // `image` leaf field (no class, no edge) — like a bare image field elsewhere.
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [{name: 'body', type: 'array', of: [{type: 'block'}, {type: 'image'}]}],
+      },
+    ]
+    const model = walk(types)
+    const body = model.classes.find((c) => c.name === 'Body')
+    expect(body?.origin).toBe('portableText')
+    expect(body?.fields.map((f) => f.name)).toEqual(['block', 'image'])
+    expect(body?.fields.find((f) => f.name === 'image')?.char).toEqual({
+      kind: 'primitive',
+      prim: 'image',
+      array: true,
+    })
+    // The bare image is a leaf — no composition/reference edge for it.
+    expect(model.edges.some((e) => e.source === 'Body' && e.fieldName === 'image')).toBe(false)
+    // The body itself still composes in from its document.
+    expect(model.edges).toContainEqual({
+      source: 'Article',
+      target: 'Body',
+      relation: 'composition',
+      fieldName: 'body',
+    })
+  })
+
+  it('shows a bare inline image embed as a leaf field alongside class-able embeds', () => {
+    const types = [
+      {
+        name: 'article',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [
+              {type: 'block'},
+              {type: 'calloutBox'},
+              {name: 'minimalInlineImage', type: 'image'},
+            ],
+          },
+        ],
+      },
+      {name: 'calloutBox', type: 'object', fields: [{name: 'tone', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const body = model.classes.find((c) => c.name === 'Body')
+    expect(body?.fields.map((f) => f.name)).toEqual(['block', 'calloutBox', 'minimalInlineImage'])
+    expect(body?.fields.find((f) => f.name === 'minimalInlineImage')?.char).toEqual({
+      kind: 'primitive',
+      prim: 'image',
+      array: true,
+    })
+    // calloutBox composes in; the bare image leaf gets no edge.
+    expect(model.edges).toContainEqual({
+      source: 'Body',
+      target: 'CalloutBox',
+      relation: 'composition',
+      fieldName: 'calloutBox',
+    })
+    expect(model.edges.some((e) => e.fieldName === 'minimalInlineImage')).toBe(false)
   })
 
   it('collects embeds from all three positions into one portable-text class', () => {
@@ -1566,8 +1797,8 @@ describe('walker', () => {
     ]
     const model = walk(types)
     const names = model.classes.map((c) => c.name)
-    expect(names).toContain('BodyFootnote')
-    expect(names).toContain('ContentFootnote')
+    expect(names).toContain('Footnote_Body')
+    expect(names).toContain('Footnote_Content')
     expect(names).not.toContain('Footnote')
     expect(model.warnings.some((w) => /footnote/i.test(w))).toBe(true)
   })
@@ -1795,7 +2026,7 @@ describe('walker', () => {
       })
     })
 
-    it('disambiguates two promoted inline images sharing a field name by parent-prefixing both', () => {
+    it('disambiguates two promoted inline images sharing a field name by qualifying both with their parent', () => {
       const types = [
         {
           name: 'author',
@@ -1810,16 +2041,16 @@ describe('walker', () => {
       ]
       const model = walk(types)
       const classNames = model.classes.map((c) => c.name).sort()
-      expect(classNames).toEqual(['Article', 'ArticleImage', 'Author', 'AuthorImage'])
+      expect(classNames).toEqual(['Article', 'Author', 'Image_Article', 'Image_Author'])
       expect(model.edges).toContainEqual({
         source: 'Author',
-        target: 'AuthorImage',
+        target: 'Image_Author',
         relation: 'composition',
         fieldName: 'image',
       })
       expect(model.edges).toContainEqual({
         source: 'Article',
-        target: 'ArticleImage',
+        target: 'Image_Article',
         relation: 'composition',
         fieldName: 'image',
       })
