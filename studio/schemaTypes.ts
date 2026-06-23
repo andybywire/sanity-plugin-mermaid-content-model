@@ -21,6 +21,17 @@ import {defineArrayMember, defineField, defineType, type SchemaTypeDefinition} f
  *   (`article.gallery`), an inline image promoted to a class by its own
  *   sub-fields (`article.coverImage`), and a named image type used as a field
  *   (`heroImage`, the "Hero Image block" case)
+ * - Portable Text embeds from issue #23, all living in `article.body`: a named
+ *   image type embedded in PT (`figure`), an inline image carrying its own
+ *   sub-fields embedded in PT (promoted to its own class), a bare/minimal inline
+ *   image (`minimalInlineImage`) that surfaces as a scalar `image` leaf field on
+ *   the body class, and a plugin-contributed `code` type embedded under its own
+ *   member name (`{name: 'pre', type: 'code'}`, which surfaces as a `pre` field → `Code`)
+ * - a deliberate name collision (issue #23): `page.body` is a second structural
+ *   PT field also named `body`, so it and `article.body` both derive the class
+ *   name `Body`. The walker disambiguates them (`Body_Article` / `Body_Page`)
+ *   and flags the collision in Potential Issues — a modeling misstep shown
+ *   as-created, then called out rather than silently merged.
  * - an intentional orphan object (`orphanWidget`) — defined but referenced by
  *   nothing, so "Hide Orphan Objects" has something to act on
  * - validation rules so the probe has real cardinality to recover
@@ -58,6 +69,21 @@ const heroImage = defineType({
   fields: [
     defineField({name: 'alt', type: 'string', validation: (rule) => rule.required()}),
     defineField({name: 'caption', type: 'string'}),
+  ],
+})
+
+// A second named image type — embedded in `article.body` as a Portable Text
+// member (`{type: 'figure'}`), the issue #23 "figure in bodyText" case. Like
+// any named class it composes into the PT class; reachable only through the
+// body, so hiding Portable Text strands it as an orphan.
+const figure = defineType({
+  name: 'figure',
+  title: 'Figure',
+  type: 'image',
+  fields: [
+    defineField({name: 'caption', type: 'text', rows: 2}),
+    defineField({name: 'altText', type: 'string'}),
+    defineField({name: 'outline', type: 'boolean', initialValue: false}),
   ],
 })
 
@@ -156,16 +182,62 @@ const article = defineType({
         }),
         // block-level (portable-text) object
         defineArrayMember({type: 'calloutBox'}),
+        // Named image type embedded in PT (issue #23) → composes to the Figure
+        // class; reachable only through the body.
+        defineArrayMember({type: 'figure'}),
+        // Inline image carrying its own sub-fields, embedded in PT (issue #23).
+        // Should be promoted to its own «object» class (synthetic asset + these
+        // fields) — not silently dropped, and not flattened onto the body.
+        defineArrayMember({
+          name: 'inlineImage',
+          type: 'image',
+          title: 'Inline Image',
+          fields: [
+            defineField({name: 'altText', type: 'string'}),
+            defineField({name: 'floatLeft', type: 'boolean', initialValue: false}),
+          ],
+        }),
+        // Bare/minimal inline image — no sub-fields. Not great practice, but
+        // possible: it makes the PT structural and surfaces as a scalar `image`
+        // leaf field on the body class (no class, no edge) — issue #23.
+        defineArrayMember({
+          name: 'minimalInlineImage',
+          type: 'image',
+        }),
+        // Plugin-contributed `code` type under its own member name (issue #23).
+        // Surfaces as a `pre` field whose type is the `Code` class.
+        defineArrayMember({name: 'pre', title: 'Pre', type: 'code'}),
       ],
+    }),
+  ],
+})
+
+// A second document whose Portable Text field is also named `body` — the
+// deliberate issue #23 collision. `article.body` and `page.body` both derive
+// `Body`; the walker keeps them distinct (`Body_Article` / `Body_Page`) and
+// warns, rather than letting Mermaid merge them into one misleading box.
+const page = defineType({
+  name: 'page',
+  title: 'Page',
+  type: 'document',
+  fields: [
+    defineField({name: 'title', type: 'string', validation: (rule) => rule.required()}),
+    defineField({
+      name: 'body',
+      title: 'Body',
+      type: 'array',
+      of: [defineArrayMember({type: 'block'}), defineArrayMember({type: 'calloutBox'})],
     }),
   ],
 })
 
 export const schemaTypes: SchemaTypeDefinition[] = [
   article,
+  page,
   author,
   seo,
   heroImage,
+  figure,
   inlineHighlight,
   calloutBox,
   orphanWidget,
