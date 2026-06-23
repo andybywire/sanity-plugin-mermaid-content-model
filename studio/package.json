@@ -19,7 +19,6 @@
     "styled-components": "^6.3.11"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
-    "vite-tsconfig-paths": "^6.1.1"
+    "@types/react": "^19.2.14"
   }
 }
