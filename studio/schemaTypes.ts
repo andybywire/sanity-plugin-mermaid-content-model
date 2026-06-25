@@ -51,7 +51,8 @@ import {defineArrayMember, defineField, defineType, type SchemaTypeDefinition} f
  *   shape, so the walker advises extracting a shared named type — the advisory
  *   half of "render as-authored, flag the smells."
  * - an intentional orphan object (`orphanWidget`) — defined but referenced by
- *   nothing, so "Hide Orphan Objects" has something to act on
+ *   nothing, so "Hide Orphan Objects" has something to act on and the
+ *   unreferenced-object warning (issue #30) has something to flag
  * - validation rules so the probe has real cardinality to recover
  */
 

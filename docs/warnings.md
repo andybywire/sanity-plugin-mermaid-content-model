@@ -52,11 +52,16 @@ One warning is different in kind: the schema-adapter's **read guard**. If `useSc
 - **How** — `walk()` post-pass grouping inline classes by structural signature; groups of >1 warn once. Fires independently of the name-collision warnings (a distinct smell: same shape, not same name).
 - **Message** — _"Inline objects 'Foo' and 'Bar' share an identical shape — consider extracting a shared named type (queryable by _type, referenceable, and reusable)."_
 
+### 7. A named object type is never referenced
+
+- **Detects** — a class with `origin: 'object'` that no edge targets ([#30](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/30)). Scoped to named objects: documents have standalone identity, a defined-but-unused image/file asset type is plausible, and inline/portable-text classes always have a parent edge by construction.
+- **Why** — an object only exists embedded in something, so one with zero incoming edges is dead weight; flagging it helps prune dead schema and reduces ambiguity for agents. **Advisory only:** a WIP type, or one reached via mechanisms the walker doesn't track (conditional fields, custom inputs), is a false positive. Distinct from the **visibility-dependent** "Hide Orphan Objects" button (`orphanObjects` in `elements.ts`), which reports objects unreachable from the *currently-visible* documents — this warning is static and schema-level.
+- **How** — `walk()` post-pass over the kept edges; one warning per unreferenced object.
+- **Message** — _"Object type 'Foo' is defined but never referenced — consider removing it, or referencing it from a type that uses it."_
+
 ## Under consideration
 
-Tracked as issues, not yet implemented (each links the analysis and the risk/nuance):
-
-- **Unreferenced named object types** — [#30](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/30). Advisory: a named object that nothing references.
+None currently tracked — new modeling-smell ideas are filed as issues and land here until implemented.
 
 ## Adding a new warning
 

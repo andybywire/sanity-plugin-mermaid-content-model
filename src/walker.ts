@@ -1297,6 +1297,8 @@ export function walk(types: unknown[]): CanonicalModel {
     }
   }
 
+  warnUnreferencedObjects(ctx, keptEdges)
+
   // Post-pass: warn when the same field name appears across classes with
   // structurally different characterisations. Mermaid emits each class's
   // field independently so there's no structural collision — but the name
@@ -1373,6 +1375,27 @@ function warnDuplicateInlineShapes(ctx: WalkContext): void {
     if (names.length < 2) continue
     ctx.warnings.push(
       `Inline objects ${joinClassNames(names)} share an identical shape — consider extracting a shared named type (queryable by _type, referenceable, and reusable).`,
+    )
+  }
+}
+
+/**
+ * Warn about each named `object` type that nothing references — an object with
+ * zero incoming edges is dead weight, since objects only exist embedded in
+ * something (issue #30). Scoped to `origin: 'object'`: documents have their own
+ * identity, a defined-but-unused image/file asset type is plausible, and
+ * inline/portable-text classes always have a parent edge by construction.
+ * Advisory only (a WIP type, or one reached via untracked mechanisms like
+ * conditional fields, is a false positive). Distinct from the visibility-
+ * dependent "Hide Orphan Objects" button — this is static and schema-level.
+ */
+function warnUnreferencedObjects(ctx: WalkContext, edges: Edge[]): void {
+  const referenced = new Set(edges.map((e) => e.target))
+  for (const cls of ctx.classes) {
+    if (cls.origin !== 'object') continue
+    if (referenced.has(cls.name)) continue
+    ctx.warnings.push(
+      `Object type '${cls.name}' is defined but never referenced — consider removing it, or referencing it from a type that uses it.`,
     )
   }
 }
