@@ -27,6 +27,12 @@ import {defineArrayMember, defineField, defineType, type SchemaTypeDefinition} f
  *   image (`minimalInlineImage`) that surfaces as a scalar `image` leaf field on
  *   the body class, and a plugin-contributed `code` type embedded under its own
  *   member name (`{name: 'pre', type: 'code'}`, which surfaces as a `pre` field → `Code`)
+ * - a named-type *alias* embedded in Portable Text (issue #32): `dataTableBlock`
+ *   is a thin alias (`type: 'dataTable'`) over the `dataTable` object — the shape
+ *   plugins use to attach custom components to a shared object (e.g.
+ *   sanity-plugin-rich-table's `richTableBlock` → `richTable`). The walker follows
+ *   the alias so the embed composes to `DataTable` (and its `tableRow` subtree)
+ *   rather than stranding it as an orphan.
  * - a deliberate name collision (issue #23): `page.body` is a second structural
  *   PT field also named `body`, so it and `article.body` both derive the class
  *   name `Body`. The walker disambiguates them (`Body_Article` / `Body_Page`)
@@ -114,6 +120,40 @@ const orphanWidget = defineType({
   type: 'object',
   fields: [defineField({name: 'label', type: 'string'})],
 })
+
+// A named object type with its own nested structure (rows → cells), embedded in
+// `article.body` through the `dataTableBlock` alias below.
+const dataTable = defineType({
+  name: 'dataTable',
+  title: 'Data Table',
+  type: 'object',
+  fields: [
+    defineField({name: 'caption', type: 'string'}),
+    defineField({name: 'rows', type: 'array', of: [defineArrayMember({type: 'tableRow'})]}),
+  ],
+})
+
+const tableRow = defineType({
+  name: 'tableRow',
+  title: 'Table Row',
+  type: 'object',
+  fields: [defineField({name: 'cells', type: 'array', of: [defineArrayMember({type: 'string'})]})],
+})
+
+// A named-type ALIAS (Sanity type extension): its `type` is another named type
+// (`dataTable`), not an intrinsic. Plugins use this to attach custom components
+// to a shared object — e.g. sanity-plugin-rich-table's `richTableBlock` aliases
+// `richTable`. The walker must follow the alias to `DataTable` so an embed of it
+// connects rather than orphaning the table (issue #32).
+//
+// Written as a plain typed literal rather than via `defineType`: for a type
+// alias `defineType` infers `options: unknown`, which trips the studio's
+// `exactOptionalPropertyTypes` when assigned to `SchemaTypeDefinition[]`.
+const dataTableBlock: SchemaTypeDefinition = {
+  name: 'dataTableBlock',
+  title: 'Data Table Block',
+  type: 'dataTable',
+}
 
 const article = defineType({
   name: 'article',
@@ -207,6 +247,14 @@ const article = defineType({
         // Plugin-contributed `code` type under its own member name (issue #23).
         // Surfaces as a `pre` field whose type is the `Code` class.
         defineArrayMember({name: 'pre', title: 'Pre', type: 'code'}),
+        // Named-type alias embedded in PT (issue #32): dataTableBlock aliases
+        // the dataTable object (like rich-table's richTableBlock → richTable).
+        // The walker follows the alias so this composes to DataTable.
+        defineArrayMember({
+          name: 'dataTableBlock',
+          title: 'Data Table Block',
+          type: 'dataTableBlock',
+        }),
       ],
     }),
   ],
@@ -241,4 +289,7 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   inlineHighlight,
   calloutBox,
   orphanWidget,
+  dataTable,
+  tableRow,
+  dataTableBlock,
 ]

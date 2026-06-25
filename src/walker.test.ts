@@ -331,6 +331,149 @@ describe('walker', () => {
     })
   })
 
+  // Named-type aliases (Sanity "type extension"): a top-level type whose
+  // `type` is the NAME of another registered type, e.g. the rich-table
+  // plugin's `{name: 'richTableBlock', type: 'richTable'}`. The walker must
+  // follow the alias to the underlying definition so the field connects to
+  // the class `walk()` actually emits — rather than dropping it silently and
+  // stranding that class as an orphan (issue #32).
+  it('resolves a field whose type is a named alias to a class as a composition edge (issue #32)', () => {
+    const types = [
+      {name: 'doc', type: 'document', fields: [{name: 'table', type: 'richTableBlock'}]},
+      {name: 'richTableBlock', type: 'richTable'},
+      {name: 'richTable', type: 'object', fields: [{name: 'caption', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const doc = model.classes.find((c) => c.name === 'Doc')
+    expect(doc?.fields[0]?.char).toEqual({
+      kind: 'object',
+      target: 'RichTable',
+      relation: 'composition',
+      array: false,
+    })
+    expect(model.edges).toContainEqual({
+      source: 'Doc',
+      target: 'RichTable',
+      relation: 'composition',
+      fieldName: 'table',
+    })
+    // the alias itself is never emitted as its own class
+    expect(model.classes.map((c) => c.name)).not.toContain('RichTableBlock')
+  })
+
+  it('resolves a named-alias-to-class used inside an array as a composition edge (issue #32)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [{name: 'tables', type: 'array', of: [{type: 'richTableBlock'}]}],
+      },
+      {name: 'richTableBlock', type: 'richTable'},
+      {name: 'richTable', type: 'object', fields: [{name: 'caption', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const doc = model.classes.find((c) => c.name === 'Doc')
+    expect(doc?.fields[0]?.char).toEqual({
+      kind: 'object',
+      target: 'RichTable',
+      relation: 'composition',
+      array: true,
+    })
+  })
+
+  it('connects a portable-text embed whose type is a named alias to a class (issue #32)', () => {
+    // The reported case: a PT array member references `richTableBlock`, which
+    // aliases the `richTable` object. The body must promote to a class and the
+    // embed must compose to RichTable (named by the member), not be dropped.
+    const types = [
+      {
+        name: 'bodyPortableText',
+        type: 'array',
+        of: [{type: 'block'}, {name: 'richTableBlock', type: 'richTableBlock'}],
+      },
+      {name: 'richTableBlock', type: 'richTable'},
+      {name: 'richTable', type: 'object', fields: [{name: 'caption', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const body = model.classes.find((c) => c.name === 'BodyPortableText')
+    expect(body?.fields).toContainEqual({
+      name: 'richTableBlock',
+      char: {kind: 'object', target: 'RichTable', relation: 'composition', array: true},
+      cardinality: {min: 0, max: '*'},
+      hasCustomMarker: false,
+    })
+    expect(model.edges).toContainEqual({
+      source: 'BodyPortableText',
+      target: 'RichTable',
+      relation: 'composition',
+      fieldName: 'richTableBlock',
+    })
+    expect(model.classes.map((c) => c.name)).not.toContain('RichTableBlock')
+  })
+
+  it('follows a multi-hop alias chain to the underlying class (issue #32)', () => {
+    const types = [
+      {name: 'doc', type: 'document', fields: [{name: 'thing', type: 'aliasA'}]},
+      {name: 'aliasA', type: 'aliasB'},
+      {name: 'aliasB', type: 'widget'},
+      {name: 'widget', type: 'object', fields: [{name: 'label', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const doc = model.classes.find((c) => c.name === 'Doc')
+    expect(doc?.fields[0]?.char).toEqual({
+      kind: 'object',
+      target: 'Widget',
+      relation: 'composition',
+      array: false,
+    })
+  })
+
+  it('resolves a field whose type is a named alias to a primitive as that primitive (issue #32)', () => {
+    const types = [
+      {name: 'doc', type: 'document', fields: [{name: 'subtitle', type: 'brandedString'}]},
+      {name: 'brandedString', type: 'string'},
+    ]
+    const model = walk(types)
+    const doc = model.classes.find((c) => c.name === 'Doc')
+    expect(doc?.fields[0]?.char).toEqual({kind: 'primitive', prim: 'string', array: false})
+    // no spurious edge, and the primitive alias is not emitted as a class
+    expect(model.edges).toEqual([])
+    expect(model.classes.map((c) => c.name)).toEqual(['Doc'])
+  })
+
+  it('resolves a field referencing a named top-level file type as a composition edge', () => {
+    // A named `file` type is emitted as a class by walk(); a field referencing
+    // it by name should compose in, like a named `image` type does.
+    const types = [
+      {name: 'doc', type: 'document', fields: [{name: 'download', type: 'assetFile'}]},
+      {name: 'assetFile', type: 'file', fields: [{name: 'label', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const doc = model.classes.find((c) => c.name === 'Doc')
+    expect(doc?.fields[0]?.char).toEqual({
+      kind: 'object',
+      target: 'AssetFile',
+      relation: 'composition',
+      array: false,
+    })
+    expect(model.edges).toContainEqual({
+      source: 'Doc',
+      target: 'AssetFile',
+      relation: 'composition',
+      fieldName: 'download',
+    })
+  })
+
+  it('does not infinite-loop on a self-referential alias; drops the field', () => {
+    const types = [
+      {name: 'doc', type: 'document', fields: [{name: 'x', type: 'loop'}]},
+      {name: 'loop', type: 'loop'},
+    ]
+    const model = walk(types)
+    const doc = model.classes.find((c) => c.name === 'Doc')
+    expect(doc?.fields).toEqual([])
+  })
+
   it('sets hasCustomMarker: false for a field with only required validation', () => {
     const types = [
       {

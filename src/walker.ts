@@ -276,16 +276,42 @@ const pascalCase = (s: string): string =>
 /**
  * Decide whether a top-level type, when referenced by name from a field,
  * should resolve to a composition edge to its own class. Documents,
- * objects, and image types qualify (all of which are emitted as classes
- * by `walk`); primitive aliases and skipped types do not.
+ * objects, image, and file types qualify (all of which are emitted as
+ * classes by `walk`); primitive aliases and skipped types do not.
  */
 function isClassType(t: RawType): boolean {
-  return t.type === 'document' || t.type === 'object' || t.type === 'image'
+  return t.type === 'document' || t.type === 'object' || t.type === 'image' || t.type === 'file'
+}
+
+/**
+ * Follow a chain of named-type aliases to the definition that actually
+ * carries structure. A "type alias" is Sanity's type-extension feature: a
+ * top-level type whose `type` is the NAME of another registered type, e.g.
+ * the rich-table plugin's `{name: 'richTableBlock', type: 'richTable'}`
+ * aliasing the `richTable` object (issue #32).
+ *
+ * Returns the underlying definition whose `type` is an intrinsic/structural
+ * keyword (object, image, file, reference, array, string, …) — i.e. the one
+ * `walk()` would key off — so callers resolve to the class `walk()` actually
+ * emits rather than the empty alias. Returns the input unchanged when its
+ * `type` doesn't name another registered type. Guards against cycles.
+ */
+function resolveTypeAlias(named: RawType, typeMap: Map<string, RawType>): RawType {
+  const seen = new Set<string>()
+  let current = named
+  while (typeMap.has(current.type) && !seen.has(current.name)) {
+    seen.add(current.name)
+    const next = typeMap.get(current.type)
+    if (!next) break
+    current = next
+  }
+  return current
 }
 
 /**
  * Resolve a named type to a field characterisation appropriate for the
- * given array context. Handles class composition, reference aliases
+ * given array context. Handles named-type aliases (Sanity type extension —
+ * issue #32), class composition, reference aliases
  * (`defineType({type: 'reference', to: ...})`), and array aliases
  * (`defineType({type: 'array', of: [...]})` — including portable text).
  * Returns null if the type isn't something we know how to surface.
@@ -295,13 +321,23 @@ function resolveNamedType(
   array: boolean,
   typeMap: Map<string, RawType>,
 ): FieldChar | null {
-  if (isClassType(named)) {
-    return {kind: 'object', target: pascalCase(named.name), relation: 'composition', array}
+  // Follow named-type aliases to the underlying definition first, so an alias
+  // like {name: 'richTableBlock', type: 'richTable'} resolves to whatever
+  // richTable is. Every branch below then keys off the resolved base — and the
+  // class/PT cases target `base.name`, the type `walk()` actually emits.
+  const base = resolveTypeAlias(named, typeMap)
+  if (isClassType(base)) {
+    return {kind: 'object', target: pascalCase(base.name), relation: 'composition', array}
   }
+  // Alias to an intrinsic primitive (`{name: 'brandedString', type: 'string'}`)
+  // → that primitive's leaf. Without this it would fall through to null and the
+  // field would be dropped (issue #32).
+  const prim = PRIMITIVE_TYPES[base.type]
+  if (prim) return {kind: 'primitive', prim, array}
   // Inline-alias to a reference: e.g.
   //   defineType({name: 'referencedDiscipline', type: 'reference', to: [{type: 'discipline'}]})
-  if (named.type === 'reference') {
-    const target = firstReferenceTarget(named.to)
+  if (base.type === 'reference') {
+    const target = firstReferenceTarget(base.to)
     if (!target) return null
     return {kind: 'object', target: pascalCase(target), relation: 'reference', array}
   }
@@ -313,16 +349,16 @@ function resolveNamedType(
   //  - Block-only portable text → scalar PortableText label (no class).
   //  - Any other array shape (primitives, references) → behaves like
   //    an inline array field at the call site.
-  if (named.type === 'array' && named.of) {
-    if (structuralPortableTextEmbeds(named.of, typeMap)) {
+  if (base.type === 'array' && base.of) {
+    if (structuralPortableTextEmbeds(base.of, typeMap)) {
       return {
         kind: 'object',
-        target: pascalCase(named.name),
+        target: pascalCase(base.name),
         relation: 'composition',
         array,
       }
     }
-    return characterizeArrayMembers(named.of, typeMap)
+    return characterizeArrayMembers(base.of, typeMap)
   }
   return null
 }
@@ -356,8 +392,9 @@ function inlineEmbedAssetType(member: RawArrayMember): InlineAssetType | null {
  *
  * - `reference` — a `reference`/cross-/global-reference with a resolvable
  *   target → association edge.
- * - `namedClass` — a member whose `type` names a kept document/object/image
- *   class → composition edge to that class.
+ * - `namedClass` — a member whose `type` names a kept document/object/image/
+ *   file class, directly or through a named-type alias (`richTableBlock` →
+ *   `richTable`, issue #32) → composition edge to the resolved class.
  * - `inlineComposite` — an inline-declared object (`{name, type: 'object',
  *   fields}`) or an inline image/file with its own authored sub-fields
  *   (`{type: 'image', fields}`) → emits its own `origin: 'inline'` class. The
@@ -374,7 +411,7 @@ function classifyEmbedMember(
     return firstReferenceTarget(member.to) ? 'reference' : null
   }
   const named = typeMap.get(member.type)
-  if (named && isClassType(named)) return 'namedClass'
+  if (named && isClassType(resolveTypeAlias(named, typeMap))) return 'namedClass'
   return null
 }
 
@@ -419,7 +456,7 @@ function collectPortableTextEmbedMembers(of: RawArrayMember[]): RawArrayMember[]
   const seen = new Set<string>()
   const unique: RawArrayMember[] = []
   for (const m of candidates) {
-    const key = `${m.type} ${m.name ?? ''} ${firstReferenceTarget(m.to) ?? ''}`
+    const key = `${m.type} ${m.name ?? ''} ${firstReferenceTarget(m.to) ?? ''}`
     if (seen.has(key)) continue
     seen.add(key)
     unique.push(m)
@@ -510,7 +547,10 @@ function buildPortableTextClassFields(
       fieldName = target
     } else if (kind === 'namedClass') {
       const named = ctx.typeMap.get(member.type) as RawType
-      char = {kind: 'object', target: pascalCase(named.name), relation: 'composition', array: true}
+      // Follow named-type aliases (`richTableBlock` → `richTable`) so the edge
+      // targets the class walk() actually emits, not the empty alias (issue #32).
+      const base = resolveTypeAlias(named, ctx.typeMap)
+      char = {kind: 'object', target: pascalCase(base.name), relation: 'composition', array: true}
       // Name the field by the member's own `name` when it carries one
       // (`{name: 'pre', type: 'code'}` → `pre`), falling back to the type name
       // for a bare `{type: 'bodyImage'}`. The edge still targets the class.
