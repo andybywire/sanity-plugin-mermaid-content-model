@@ -5,6 +5,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.3.4...v0.4.0) (2026-06-25)
+
+### Features
+
+* warn on named object types that nothing references ([5c4b426](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/5c4b426e99b293a80a09aea654300bbca654a280))
+* warn when inline-object shapes are duplicated ([05cb3d2](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/05cb3d2bc19076476f73725f04db4d1350e10f19))
+
 ## [0.3.4](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.3.3...v0.3.4) (2026-06-25)
 
 ### Bug Fixes
