@@ -41,6 +41,11 @@ import {defineArrayMember, defineField, defineType, type SchemaTypeDefinition} f
  *   name `Body`. The walker disambiguates them (`Body_Article` / `Body_Page`)
  *   and flags the collision in Potential Issues — a modeling misstep shown
  *   as-created, then called out rather than silently merged.
+ * - a second deliberate collision (issue #28), this time of *named top-level
+ *   types*: `priceTag` and `price_tag` both pascalCase to `PriceTag`. The walker
+ *   disambiguates them base-first by source name (`PriceTag_priceTag` /
+ *   `PriceTag_price_tag`) and warns; `page` composes both, so the edges show the
+ *   distinct targets.
  * - an intentional orphan object (`orphanWidget`) — defined but referenced by
  *   nothing, so "Hide Orphan Objects" has something to act on
  * - validation rules so the probe has real cardinality to recover
@@ -157,6 +162,25 @@ const dataTableBlock: SchemaTypeDefinition = {
   title: 'Data Table Block',
   type: 'dataTable',
 }
+
+// Two distinct type names that pascalCase to the same class name — the #28
+// collision. The walker disambiguates them base-first by source name
+// (`PriceTag_priceTag` / `PriceTag_price_tag`) and flags it in Potential Issues,
+// rather than letting Mermaid merge them into one box. Both are composed into
+// `page` below, so the edges also show the disambiguated targets.
+const priceTag = defineType({
+  name: 'priceTag',
+  title: 'Price Tag (camelCase)',
+  type: 'object',
+  fields: [defineField({name: 'amount', type: 'number'})],
+})
+
+const priceTagSnake = defineType({
+  name: 'price_tag',
+  title: 'Price Tag (snake_case)',
+  type: 'object',
+  fields: [defineField({name: 'label', type: 'string'})],
+})
 
 const article = defineType({
   name: 'article',
@@ -288,6 +312,10 @@ const page = defineType({
       type: 'reference',
       to: [{type: 'article'}, {type: 'author'}],
     }),
+    // Compose both pascalCase-colliding types (issue #28). Each edge targets its
+    // own disambiguated class (`PriceTag_priceTag` / `PriceTag_price_tag`).
+    defineField({name: 'tag', type: 'priceTag'}),
+    defineField({name: 'legacyTag', type: 'price_tag'}),
   ],
 })
 
@@ -304,4 +332,6 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   dataTable,
   tableRow,
   dataTableBlock,
+  priceTag,
+  priceTagSnake,
 ]

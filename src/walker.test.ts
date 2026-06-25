@@ -951,6 +951,96 @@ describe('walker', () => {
     ).toEqual(['local'])
   })
 
+  // Two distinct top-level type names that pascalCase to the same class name
+  // (`blogPost` + `blog_post` → `BlogPost`) would otherwise emit two classes
+  // with the same name and merge into one Mermaid box. Disambiguate base-first
+  // by source name and warn, mirroring the field-derived collision fix (#23).
+  it('disambiguates two top-level types that pascalCase to the same name, with a warning (issue #28)', () => {
+    const types = [
+      {name: 'blogPost', type: 'document', fields: []},
+      {name: 'blog_post', type: 'document', fields: []},
+    ]
+    const model = walk(types)
+    expect(model.classes.map((c) => c.name).sort()).toEqual([
+      'BlogPost_blogPost',
+      'BlogPost_blog_post',
+    ])
+    expect(
+      model.warnings.some(
+        (w) => w.includes('BlogPost') && w.includes('blogPost') && w.includes('blog_post'),
+      ),
+    ).toBe(true)
+  })
+
+  it('retargets reference edges to the correct disambiguated class for colliding types (issue #28)', () => {
+    const types = [
+      {
+        name: 'page',
+        type: 'document',
+        fields: [
+          {name: 'featured', type: 'reference', to: [{type: 'blogPost'}]},
+          {name: 'legacy', type: 'reference', to: [{type: 'blog_post'}]},
+        ],
+      },
+      {name: 'blogPost', type: 'document', fields: []},
+      {name: 'blog_post', type: 'document', fields: []},
+    ]
+    const model = walk(types)
+    expect(model.edges).toContainEqual({
+      source: 'Page',
+      target: 'BlogPost_blogPost',
+      relation: 'reference',
+      fieldName: 'featured',
+    })
+    expect(model.edges).toContainEqual({
+      source: 'Page',
+      target: 'BlogPost_blog_post',
+      relation: 'reference',
+      fieldName: 'legacy',
+    })
+  })
+
+  it('does not qualify or warn for a single (non-colliding) top-level type (issue #28)', () => {
+    const types = [{name: 'blogPost', type: 'document', fields: []}]
+    const model = walk(types)
+    expect(model.classes.map((c) => c.name)).toEqual(['BlogPost'])
+    expect(model.warnings).toEqual([])
+  })
+
+  it('disambiguates an inline object colliding with a named file type (issue #28 completeness)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [{name: 'cover', type: 'object', fields: [{name: 'label', type: 'string'}]}],
+      },
+      {name: 'cover', type: 'file', fields: [{name: 'alt', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const names = model.classes.map((c) => c.name)
+    // the file type keeps the bare name; the inline object is qualified by its parent
+    expect(names).toContain('Cover')
+    expect(names).toContain('Cover_Doc')
+    expect(model.warnings.some((w) => w.toLowerCase().includes('cover'))).toBe(true)
+  })
+
+  it('disambiguates an inline object colliding with a named portable-text alias (issue #28 completeness)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [{name: 'body', type: 'object', fields: [{name: 'x', type: 'string'}]}],
+      },
+      {name: 'body', type: 'array', of: [{type: 'block'}, {type: 'callout'}]},
+      {name: 'callout', type: 'object', fields: [{name: 'text', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const names = model.classes.map((c) => c.name)
+    expect(names).toContain('Body') // the portable-text alias class
+    expect(names).toContain('Body_Doc') // the inline object, qualified by its parent
+    expect(model.warnings.some((w) => w.toLowerCase().includes('body'))).toBe(true)
+  })
+
   it('drops edges whose target is a skipped type', () => {
     const types = [
       {

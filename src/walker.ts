@@ -346,6 +346,38 @@ function resolveTypeAlias(named: RawType, typeMap: Map<string, RawType>): RawTyp
 }
 
 /**
+ * Whether a top-level type emits its own class in `walk()` — documents,
+ * objects, images, files, and named structural-Portable-Text array aliases.
+ * Used to build the emitted-class-name namespace (collision detection +
+ * inline-naming), so it must mirror the branches of the main walk loop.
+ */
+function emitsTopLevelClass(t: RawType, typeMap: Map<string, RawType>): boolean {
+  if (isClassType(t)) return true
+  return t.type === 'array' && structuralPortableTextEmbeds(t.of, typeMap) !== null
+}
+
+/**
+ * The class name a top-level type emits. Plain `pascalCase(name)` unless two or
+ * more distinct type names collapse to the same pascalCase (`blogPost` +
+ * `blog_post` → `BlogPost`), in which case each is qualified base-first by its
+ * own source name (`BlogPost_blogPost`, `BlogPost_blog_post`) so they stay
+ * distinct rather than merging into one Mermaid box (issue #28). Raw type names
+ * are unique, so the qualified names are guaranteed unique within a group.
+ *
+ * Every site that turns a top-level type name into a class name — the walk loop
+ * and every reference/composition target — routes through this, so edges point
+ * at the disambiguated class rather than the bare (merged) name.
+ */
+function resolveTopLevelClassName(
+  rawName: string,
+  namedClassGroups: Map<string, string[]>,
+): string {
+  const bare = pascalCase(rawName)
+  const group = namedClassGroups.get(bare)
+  return group && group.length > 1 ? `${bare}_${rawName}` : bare
+}
+
+/**
  * Resolve a named type to a field characterisation appropriate for the
  * given array context. Handles named-type aliases (Sanity type extension —
  * issue #32), class composition, reference aliases
@@ -357,6 +389,7 @@ function resolveNamedType(
   named: RawType,
   array: boolean,
   typeMap: Map<string, RawType>,
+  namedClassGroups: Map<string, string[]>,
 ): FieldChar | null {
   // Follow named-type aliases to the underlying definition first, so an alias
   // like {name: 'richTableBlock', type: 'richTable'} resolves to whatever
@@ -364,7 +397,12 @@ function resolveNamedType(
   // class/PT cases target `base.name`, the type `walk()` actually emits.
   const base = resolveTypeAlias(named, typeMap)
   if (isClassType(base)) {
-    return {kind: 'object', target: pascalCase(base.name), relation: 'composition', array}
+    return {
+      kind: 'object',
+      target: resolveTopLevelClassName(base.name, namedClassGroups),
+      relation: 'composition',
+      array,
+    }
   }
   // Alias to an intrinsic primitive (`{name: 'brandedString', type: 'string'}`)
   // → that primitive's leaf. Without this it would fall through to null and the
@@ -376,7 +414,12 @@ function resolveNamedType(
   if (base.type === 'reference') {
     const targets = referenceTargets(base.to)
     if (targets.length === 0) return null
-    return {kind: 'object', relation: 'reference', targets: targets.map(pascalCase), array}
+    return {
+      kind: 'object',
+      relation: 'reference',
+      targets: targets.map((t) => resolveTopLevelClassName(t, namedClassGroups)),
+      array,
+    }
   }
   // Inline-alias to an array. Three sub-cases:
   //  - Structural portable text (block + class-able embeds) → resolves
@@ -390,12 +433,12 @@ function resolveNamedType(
     if (structuralPortableTextEmbeds(base.of, typeMap)) {
       return {
         kind: 'object',
-        target: pascalCase(base.name),
+        target: resolveTopLevelClassName(base.name, namedClassGroups),
         relation: 'composition',
         array,
       }
     }
-    return characterizeArrayMembers(base.of, typeMap)
+    return characterizeArrayMembers(base.of, typeMap, namedClassGroups)
   }
   return null
 }
@@ -578,7 +621,12 @@ function buildPortableTextClassFields(
 
     if (kind === 'reference') {
       const targets = referenceTargets(member.to)
-      char = {kind: 'object', relation: 'reference', targets: targets.map(pascalCase), array: true}
+      char = {
+        kind: 'object',
+        relation: 'reference',
+        targets: targets.map((t) => resolveTopLevelClassName(t, ctx.namedClassGroups)),
+        array: true,
+      }
       // References inside portable text have no field name of their own, so we
       // name them by what they point at — joined for a multi-target reference
       // (issue #27), as elsewhere in the walker.
@@ -588,7 +636,12 @@ function buildPortableTextClassFields(
       // Follow named-type aliases (`richTableBlock` → `richTable`) so the edge
       // targets the class walk() actually emits, not the empty alias (issue #32).
       const base = resolveTypeAlias(named, ctx.typeMap)
-      char = {kind: 'object', target: pascalCase(base.name), relation: 'composition', array: true}
+      char = {
+        kind: 'object',
+        target: resolveTopLevelClassName(base.name, ctx.namedClassGroups),
+        relation: 'composition',
+        array: true,
+      }
       // Name the field by the member's own `name` when it carries one
       // (`{name: 'pre', type: 'code'}` → `pre`), falling back to the type name
       // for a bare `{type: 'bodyImage'}`. The edge still targets the class.
@@ -641,6 +694,7 @@ function buildPortableTextClassFields(
 function characterizeArrayMembers(
   of: RawArrayMember[],
   typeMap: Map<string, RawType>,
+  namedClassGroups: Map<string, string[]>,
 ): FieldChar | null {
   // Portable Text: any `of` member is `block`. Sanity portable text is
   // structurally an array of blocks (often mixed with inline image or
@@ -662,7 +716,12 @@ function characterizeArrayMembers(
   if (REFERENCE_TYPES.has(inner.type)) {
     const targets = referenceTargets(inner.to)
     if (targets.length === 0) return null
-    return {kind: 'object', relation: 'reference', targets: targets.map(pascalCase), array: true}
+    return {
+      kind: 'object',
+      relation: 'reference',
+      targets: targets.map((t) => resolveTopLevelClassName(t, namedClassGroups)),
+      array: true,
+    }
   }
 
   // Named class or alias as inner type — recurse through typeMap. The
@@ -670,13 +729,17 @@ function characterizeArrayMembers(
   // array-of-aliased-references resolves to the right target.
   const namedInner = typeMap.get(inner.type)
   if (namedInner) {
-    return resolveNamedType(namedInner, true, typeMap)
+    return resolveNamedType(namedInner, true, typeMap, namedClassGroups)
   }
 
   return null
 }
 
-function characterize(field: RawField, typeMap: Map<string, RawType>): FieldChar | null {
+function characterize(
+  field: RawField,
+  typeMap: Map<string, RawType>,
+  namedClassGroups: Map<string, string[]>,
+): FieldChar | null {
   // Direct primitive: { name: 'title', type: 'string' }
   const prim = PRIMITIVE_TYPES[field.type]
   if (prim) return {kind: 'primitive', prim, array: false}
@@ -687,14 +750,19 @@ function characterize(field: RawField, typeMap: Map<string, RawType>): FieldChar
   if (REFERENCE_TYPES.has(field.type)) {
     const targets = referenceTargets(field.to)
     if (targets.length === 0) return null
-    return {kind: 'object', relation: 'reference', targets: targets.map(pascalCase), array: false}
+    return {
+      kind: 'object',
+      relation: 'reference',
+      targets: targets.map((t) => resolveTopLevelClassName(t, namedClassGroups)),
+      array: false,
+    }
   }
 
   // Inline array. Characterise the contents via the shared helper —
   // same logic applies to a `defineType({type: 'array', ...})` alias
   // resolved via typeMap.
   if (field.type === 'array' && field.of && field.of.length > 0) {
-    return characterizeArrayMembers(field.of, typeMap)
+    return characterizeArrayMembers(field.of, typeMap, namedClassGroups)
   }
 
   // Named type referenced by name. Could be a kept class (composition),
@@ -702,7 +770,7 @@ function characterize(field: RawField, typeMap: Map<string, RawType>): FieldChar
   // or an inline-alias to an array — including portable text.
   const named = typeMap.get(field.type)
   if (named) {
-    return resolveNamedType(named, false, typeMap)
+    return resolveNamedType(named, false, typeMap, namedClassGroups)
   }
 
   return null
@@ -766,8 +834,14 @@ interface WalkContext {
   warnings: string[]
   /** Bare class name → number of inline-object claims on it across the schema. */
   inlineCounts: Map<string, number>
-  /** Bare class names already claimed by top-level named classes. */
+  /** Bare class names already claimed by top-level emitted classes. */
   namedClassNames: Set<string>
+  /**
+   * Bare class name → the raw source names of every top-level type that emits a
+   * class with that pascalCased name. Groups of >1 are collisions, disambiguated
+   * base-first by source name (issue #28). Keys mirror `namedClassNames`.
+   */
+  namedClassGroups: Map<string, string[]>
   /** Bare names we've already emitted a collision warning for. */
   collisionWarningsEmitted: Set<string>
 }
@@ -1076,7 +1150,7 @@ function walkFields(
         continue
       }
 
-      const char = characterize(f, ctx.typeMap)
+      const char = characterize(f, ctx.typeMap, ctx.namedClassGroups)
       if (!char) continue
       const v = fieldValidation(f, isArrayChar(char))
       out.push({
@@ -1112,17 +1186,23 @@ export function walk(types: unknown[]): CanonicalModel {
   const typeMap = new Map<string, RawType>()
   for (const t of rawTypes) typeMap.set(t.name, t)
 
-  // Pre-pass B: collect the bare class names of every emitted top-level
-  // class, plus per-bare-name counts of inline-object claims. Both feed
-  // into inline naming: a bare name is available only when it's claimed
-  // exactly once and not by a named class.
-  const namedClassNames = new Set<string>()
+  // Pre-pass B: group every emitted top-level class by its bare (pascalCased)
+  // name. Covers documents, objects, images, files, AND named structural-PT
+  // array aliases — every branch the main loop emits — so the inline-naming and
+  // collision checks see the full namespace (issue #28 completeness). A group of
+  // more than one is a name collision: those types are disambiguated base-first
+  // by source name and warned below. `namedClassNames` (the bare keys) still
+  // feeds inline naming: a bare name is "claimed" when it's a key here.
+  const namedClassGroups = new Map<string, string[]>()
   for (const t of rawTypes) {
     if (shouldSkipTypeName(t.name)) continue
-    if (t.type === 'document' || t.type === 'object' || t.type === 'image') {
-      namedClassNames.add(pascalCase(t.name))
-    }
+    if (!emitsTopLevelClass(t, typeMap)) continue
+    const bare = pascalCase(t.name)
+    const group = namedClassGroups.get(bare)
+    if (group) group.push(t.name)
+    else namedClassGroups.set(bare, [t.name])
   }
+  const namedClassNames = new Set(namedClassGroups.keys())
   const inlineCounts = buildInlineCounts(rawTypes, typeMap)
 
   const ctx: WalkContext = {
@@ -1132,12 +1212,29 @@ export function walk(types: unknown[]): CanonicalModel {
     warnings: [],
     inlineCounts,
     namedClassNames,
+    namedClassGroups,
     collisionWarningsEmitted: new Set(),
+  }
+
+  // Top-level name collisions (issue #28): two or more distinct type names that
+  // pascalCase to the same class name (`blogPost` + `blog_post` → `BlogPost`).
+  // Warn once per group and mark the bare name so the inline / field-reuse
+  // passes don't pile a second warning on the same name.
+  for (const [bare, rawNames] of namedClassGroups) {
+    if (rawNames.length < 2) continue
+    const quoted = [...rawNames]
+      .sort()
+      .map((n) => `'${n}'`)
+      .join(', ')
+    ctx.warnings.push(
+      `The types ${quoted} all map to the class name '${bare}'. Each is qualified by its source name to keep them distinct in the diagram — consider giving them unique names.`,
+    )
+    ctx.collisionWarningsEmitted.add(bare)
   }
 
   for (const t of rawTypes) {
     if (shouldSkipTypeName(t.name)) continue
-    const className = pascalCase(t.name)
+    const className = resolveTopLevelClassName(t.name, namedClassGroups)
     if (t.type === 'document') {
       ctx.classes.push({
         name: className,
