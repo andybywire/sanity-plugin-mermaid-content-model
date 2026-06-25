@@ -154,8 +154,8 @@ describe('walker', () => {
     const methodClass = model.classes.find((c) => c.name === 'Method')
     expect(methodClass?.fields[0]?.char).toEqual({
       kind: 'object',
-      target: 'Discipline',
       relation: 'reference',
+      targets: ['Discipline'],
       array: false,
     })
   })
@@ -197,8 +197,8 @@ describe('walker', () => {
     const methodClass = model.classes.find((c) => c.name === 'Method')
     expect(methodClass?.fields[0]?.char).toEqual({
       kind: 'object',
-      target: 'Discipline',
       relation: 'reference',
+      targets: ['Discipline'],
       array: true,
     })
     expect(model.edges).toContainEqual({
@@ -207,6 +207,147 @@ describe('walker', () => {
       relation: 'reference',
       fieldName: 'disciplines',
     })
+  })
+
+  // Multi-target (polymorphic) references: `to: [{type: 'a'}, {type: 'b'}]`.
+  // A reference char carries ALL targets and emits one edge per target, so the
+  // diagram renders the model as authored instead of dropping all but the
+  // first (issue #27).
+  it('characterises a multi-target reference with all targets (issue #27)', () => {
+    const types = [
+      {
+        name: 'page',
+        type: 'document',
+        fields: [{name: 'related', type: 'reference', to: [{type: 'article'}, {type: 'event'}]}],
+      },
+      {name: 'article', type: 'document', fields: []},
+      {name: 'event', type: 'document', fields: []},
+    ]
+    const model = walk(types)
+    const page = model.classes.find((c) => c.name === 'Page')
+    expect(page?.fields[0]?.char).toEqual({
+      kind: 'object',
+      relation: 'reference',
+      targets: ['Article', 'Event'],
+      array: false,
+    })
+  })
+
+  it('emits one association edge per target for a multi-target reference, sorted (issue #27)', () => {
+    const types = [
+      {
+        name: 'page',
+        type: 'document',
+        // authored event-first to prove the edge sort is deterministic
+        fields: [{name: 'related', type: 'reference', to: [{type: 'event'}, {type: 'article'}]}],
+      },
+      {name: 'article', type: 'document', fields: []},
+      {name: 'event', type: 'document', fields: []},
+    ]
+    const model = walk(types)
+    expect(model.edges).toEqual([
+      {source: 'Page', target: 'Article', relation: 'reference', fieldName: 'related'},
+      {source: 'Page', target: 'Event', relation: 'reference', fieldName: 'related'},
+    ])
+  })
+
+  it('emits an edge per target for an array of multi-target references (issue #27)', () => {
+    const types = [
+      {
+        name: 'page',
+        type: 'document',
+        fields: [
+          {
+            name: 'items',
+            type: 'array',
+            of: [{type: 'reference', to: [{type: 'article'}, {type: 'event'}]}],
+          },
+        ],
+      },
+      {name: 'article', type: 'document', fields: []},
+      {name: 'event', type: 'document', fields: []},
+    ]
+    const model = walk(types)
+    const page = model.classes.find((c) => c.name === 'Page')
+    expect(page?.fields[0]?.char).toEqual({
+      kind: 'object',
+      relation: 'reference',
+      targets: ['Article', 'Event'],
+      array: true,
+    })
+    expect(model.edges.filter((e) => e.source === 'Page').map((e) => e.target)).toEqual([
+      'Article',
+      'Event',
+    ])
+  })
+
+  it('follows a reference alias with multiple targets to all of them (issue #27)', () => {
+    const types = [
+      {name: 'page', type: 'document', fields: [{name: 'related', type: 'relatedRef'}]},
+      {name: 'relatedRef', type: 'reference', to: [{type: 'article'}, {type: 'event'}]},
+      {name: 'article', type: 'document', fields: []},
+      {name: 'event', type: 'document', fields: []},
+    ]
+    const model = walk(types)
+    const page = model.classes.find((c) => c.name === 'Page')
+    expect(page?.fields[0]?.char).toEqual({
+      kind: 'object',
+      relation: 'reference',
+      targets: ['Article', 'Event'],
+      array: false,
+    })
+    expect(model.edges.filter((e) => e.source === 'Page').map((e) => e.target)).toEqual([
+      'Article',
+      'Event',
+    ])
+  })
+
+  it('emits an edge per target for a multi-target reference embedded in portable text (issue #27)', () => {
+    const types = [
+      {
+        name: 'page',
+        type: 'document',
+        fields: [
+          {
+            name: 'body',
+            type: 'array',
+            of: [
+              {type: 'block'},
+              {name: 'related', type: 'reference', to: [{type: 'article'}, {type: 'event'}]},
+            ],
+          },
+        ],
+      },
+      {name: 'article', type: 'document', fields: []},
+      {name: 'event', type: 'document', fields: []},
+    ]
+    const model = walk(types)
+    const pt = model.classes.find((c) => c.origin === 'portableText')
+    expect(pt).toBeDefined()
+    const refTargets = model.edges
+      .filter((e) => e.source === pt?.name && e.relation === 'reference')
+      .map((e) => e.target)
+    expect(refTargets).toEqual(['Article', 'Event'])
+  })
+
+  it('deduplicates repeated reference targets (issue #27)', () => {
+    const types = [
+      {
+        name: 'page',
+        type: 'document',
+        fields: [{name: 'related', type: 'reference', to: [{type: 'article'}, {type: 'article'}]}],
+      },
+      {name: 'article', type: 'document', fields: []},
+    ]
+    const model = walk(types)
+    const page = model.classes.find((c) => c.name === 'Page')
+    expect(page?.fields[0]?.char).toEqual({
+      kind: 'object',
+      relation: 'reference',
+      targets: ['Article'],
+      array: false,
+    })
+    expect(model.edges.filter((e) => e.source === 'Page')).toHaveLength(1)
   })
 
   it('resolves named object types referenced as fields to composition edges', () => {
@@ -285,8 +426,8 @@ describe('walker', () => {
     const methodClass = model.classes.find((c) => c.name === 'Method')
     expect(methodClass?.fields[0]?.char).toEqual({
       kind: 'object',
-      target: 'Discipline',
       relation: 'reference',
+      targets: ['Discipline'],
       array: false,
     })
     expect(model.edges).toContainEqual({
@@ -325,8 +466,8 @@ describe('walker', () => {
     const methodClass = model.classes.find((c) => c.name === 'Method')
     expect(methodClass?.fields[0]?.char).toEqual({
       kind: 'object',
-      target: 'Discipline',
       relation: 'reference',
+      targets: ['Discipline'],
       array: true,
     })
   })
@@ -1018,8 +1159,8 @@ describe('walker', () => {
     const method = model.classes.find((c) => c.name === 'Method')
     expect(method?.fields[0]?.char).toEqual({
       kind: 'object',
-      target: 'Discipline',
       relation: 'reference',
+      targets: ['Discipline'],
       array: false,
     })
     expect(model.edges).toContainEqual({
@@ -1099,8 +1240,8 @@ describe('walker', () => {
     const method = model.classes.find((c) => c.name === 'Method')
     expect(method?.fields[0]?.char).toEqual({
       kind: 'object',
-      target: 'Discipline',
       relation: 'reference',
+      targets: ['Discipline'],
       array: false,
     })
   })
@@ -1128,8 +1269,8 @@ describe('walker', () => {
     const method = model.classes.find((c) => c.name === 'Method')
     expect(method?.fields[0]?.char).toEqual({
       kind: 'object',
-      target: 'Discipline',
       relation: 'reference',
+      targets: ['Discipline'],
       array: true,
     })
   })
@@ -1149,8 +1290,8 @@ describe('walker', () => {
     const method = model.classes.find((c) => c.name === 'Method')
     expect(method?.fields[0]?.char).toEqual({
       kind: 'object',
-      target: 'Discipline',
       relation: 'reference',
+      targets: ['Discipline'],
       array: false,
     })
   })
@@ -1218,8 +1359,8 @@ describe('walker', () => {
     const method = model.classes.find((c) => c.name === 'Method')
     expect(method?.fields[0]?.char).toEqual({
       kind: 'object',
-      target: 'Tag',
       relation: 'reference',
+      targets: ['Tag'],
       array: true,
     })
     expect(model.edges).toContainEqual({

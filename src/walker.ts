@@ -48,13 +48,40 @@ export interface PrimitiveChar {
   array: boolean
 }
 
-export interface ObjectChar {
+/**
+ * Object-valued field characterisations, discriminated by `relation`.
+ *
+ * Composition (inline objects, named-class fields, images, portable-text
+ * wrappers) is inherently single-target — a field composes into exactly one
+ * class — so it carries a single `target`. A reference can point at *several*
+ * types (`to: [{type: 'a'}, {type: 'b'}]`), so it carries `targets` and emits
+ * one edge per target (issue #27). Splitting the two makes a multi-target
+ * composition unrepresentable rather than merely unused.
+ */
+export interface CompositionChar {
   kind: 'object'
-  /** Class name of the related type, pascal-cased. */
+  relation: 'composition'
+  /** Class name of the composed-into type, pascal-cased. */
   target: string
-  /** Composition for inline objects, reference for `type: 'reference'` fields. */
-  relation: Relation
   array: boolean
+}
+
+export interface ReferenceChar {
+  kind: 'object'
+  relation: 'reference'
+  /**
+   * Class names this reference can point at, pascal-cased — one per `to[]`
+   * target, deduped and in authored order. Length ≥ 1.
+   */
+  targets: string[]
+  array: boolean
+}
+
+export type ObjectChar = CompositionChar | ReferenceChar
+
+/** Every class an object char points at: one for composition, ≥1 for a reference. */
+export function objectCharTargets(char: ObjectChar): string[] {
+  return char.relation === 'composition' ? [char.target] : char.targets
 }
 
 /**
@@ -184,14 +211,24 @@ interface RawType {
 }
 
 /**
- * Normalise the `to` value to its first target's type name, accepting
- * either Sanity's array form `[{type: 'X'}]` or single-object form
- * `{type: 'X'}`. Returns undefined when neither form yields a target.
+ * Normalise the `to` value to its target type names, accepting either Sanity's
+ * array form `[{type: 'X'}, {type: 'Y'}]` or single-object form `{type: 'X'}`.
+ * Returns every target — deduped, in authored order — so a multi-target
+ * (polymorphic) reference renders an edge per target rather than dropping all
+ * but the first (issue #27). Empty when neither form yields a target.
  */
-function firstReferenceTarget(to: RawReferenceTo | undefined): string | undefined {
-  if (!to) return undefined
-  if (Array.isArray(to)) return to[0]?.type
-  return to.type
+function referenceTargets(to: RawReferenceTo | undefined): string[] {
+  if (!to) return []
+  const raw = Array.isArray(to) ? to : [to]
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const t of raw) {
+    if (t?.type && !seen.has(t.type)) {
+      seen.add(t.type)
+      out.push(t.type)
+    }
+  }
+  return out
 }
 
 // Platform metadata fields auto-injected by Sanity onto documents — never
@@ -337,9 +374,9 @@ function resolveNamedType(
   // Inline-alias to a reference: e.g.
   //   defineType({name: 'referencedDiscipline', type: 'reference', to: [{type: 'discipline'}]})
   if (base.type === 'reference') {
-    const target = firstReferenceTarget(base.to)
-    if (!target) return null
-    return {kind: 'object', target: pascalCase(target), relation: 'reference', array}
+    const targets = referenceTargets(base.to)
+    if (targets.length === 0) return null
+    return {kind: 'object', relation: 'reference', targets: targets.map(pascalCase), array}
   }
   // Inline-alias to an array. Three sub-cases:
   //  - Structural portable text (block + class-able embeds) → resolves
@@ -408,7 +445,7 @@ function classifyEmbedMember(
   if (inlineEmbedAssetType(member)) return 'inlineComposite'
   if (PRIMITIVE_TYPES[member.type]) return null
   if (REFERENCE_TYPES.has(member.type)) {
-    return firstReferenceTarget(member.to) ? 'reference' : null
+    return referenceTargets(member.to).length > 0 ? 'reference' : null
   }
   const named = typeMap.get(member.type)
   if (named && isClassType(resolveTypeAlias(named, typeMap))) return 'namedClass'
@@ -456,7 +493,7 @@ function collectPortableTextEmbedMembers(of: RawArrayMember[]): RawArrayMember[]
   const seen = new Set<string>()
   const unique: RawArrayMember[] = []
   for (const m of candidates) {
-    const key = `${m.type} ${m.name ?? ''} ${firstReferenceTarget(m.to) ?? ''}`
+    const key = `${m.type} ${m.name ?? ''} ${referenceTargets(m.to).join(',')}`
     if (seen.has(key)) continue
     seen.add(key)
     unique.push(m)
@@ -540,11 +577,12 @@ function buildPortableTextClassFields(
     let fieldName: string
 
     if (kind === 'reference') {
-      const target = firstReferenceTarget(member.to) as string
-      char = {kind: 'object', target: pascalCase(target), relation: 'reference', array: true}
-      // References inside portable text have no field name of their own, so
-      // we name them by what they point at — as elsewhere in the walker.
-      fieldName = target
+      const targets = referenceTargets(member.to)
+      char = {kind: 'object', relation: 'reference', targets: targets.map(pascalCase), array: true}
+      // References inside portable text have no field name of their own, so we
+      // name them by what they point at — joined for a multi-target reference
+      // (issue #27), as elsewhere in the walker.
+      fieldName = targets.join('|')
     } else if (kind === 'namedClass') {
       const named = ctx.typeMap.get(member.type) as RawType
       // Follow named-type aliases (`richTableBlock` → `richTable`) so the edge
@@ -581,12 +619,9 @@ function buildPortableTextClassFields(
       cardinality: {min: 0, max: '*'},
       hasCustomMarker: false,
     })
-    ctx.edges.push({
-      source: ptClassName,
-      target: char.target,
-      relation: char.relation,
-      fieldName,
-    })
+    for (const target of objectCharTargets(char)) {
+      ctx.edges.push({source: ptClassName, target, relation: char.relation, fieldName})
+    }
   }
   return fields
 }
@@ -625,9 +660,9 @@ function characterizeArrayMembers(
   if (innerPrim) return {kind: 'primitive', prim: innerPrim, array: true}
 
   if (REFERENCE_TYPES.has(inner.type)) {
-    const target = firstReferenceTarget(inner.to)
-    if (!target) return null
-    return {kind: 'object', target: pascalCase(target), relation: 'reference', array: true}
+    const targets = referenceTargets(inner.to)
+    if (targets.length === 0) return null
+    return {kind: 'object', relation: 'reference', targets: targets.map(pascalCase), array: true}
   }
 
   // Named class or alias as inner type — recurse through typeMap. The
@@ -647,12 +682,12 @@ function characterize(field: RawField, typeMap: Map<string, RawType>): FieldChar
   if (prim) return {kind: 'primitive', prim, array: false}
 
   // Reference variants: `reference`, `crossDatasetReference`, `globalDocumentReference`.
-  // All three behave the same for diagram purposes — extract the first
-  // target type and emit an association edge.
+  // All three behave the same for diagram purposes — extract every target type
+  // and emit one association edge per target (issue #27).
   if (REFERENCE_TYPES.has(field.type)) {
-    const target = firstReferenceTarget(field.to)
-    if (!target) return null
-    return {kind: 'object', target: pascalCase(target), relation: 'reference', array: false}
+    const targets = referenceTargets(field.to)
+    if (targets.length === 0) return null
+    return {kind: 'object', relation: 'reference', targets: targets.map(pascalCase), array: false}
   }
 
   // Inline array. Characterise the contents via the shared helper —
@@ -1051,12 +1086,16 @@ function walkFields(
         hasCustomMarker: v.hasCustomMarker,
       })
       if (char.kind === 'object') {
-        ctx.edges.push({
-          source: sourceClassName,
-          target: char.target,
-          relation: char.relation,
-          fieldName: f.name,
-        })
+        // One edge per target — a multi-target reference fans out (issue #27);
+        // composition always yields exactly one.
+        for (const target of objectCharTargets(char)) {
+          ctx.edges.push({
+            source: sourceClassName,
+            target,
+            relation: char.relation,
+            fieldName: f.name,
+          })
+        }
       }
     }
   }
@@ -1210,5 +1249,5 @@ export function walk(types: unknown[]): CanonicalModel {
 function charSignature(char: FieldChar): string {
   if (char.kind === 'primitive') return `${char.prim}${char.array ? '[]' : ''}`
   if (char.kind === 'portableText') return 'portableText'
-  return `${char.target}${char.array ? '[]' : ''}`
+  return `${objectCharTargets(char).join('|')}${char.array ? '[]' : ''}`
 }
