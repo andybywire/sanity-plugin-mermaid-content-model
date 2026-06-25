@@ -1322,6 +1322,8 @@ export function walk(types: unknown[]): CanonicalModel {
     )
   }
 
+  warnDuplicateInlineShapes(ctx)
+
   // Deterministic ordering for stable git diffs. Documents alphabetical
   // first, then objects alphabetical; edges by (source, fieldName, target);
   // field order within a class is left as authored, because the schema
@@ -1347,4 +1349,49 @@ function charSignature(char: FieldChar): string {
   if (char.kind === 'primitive') return `${char.prim}${char.array ? '[]' : ''}`
   if (char.kind === 'portableText') return 'portableText'
   return `${objectCharTargets(char).join('|')}${char.array ? '[]' : ''}`
+}
+
+/**
+ * Warn when two or more inline anonymous objects share an identical shape —
+ * they likely want to be a single named, reusable type (issue #29). Advisory:
+ * identical shape is a strong signal but two genuinely-different objects can
+ * coincidentally match. Shape = sorted field name:type (cardinality-independent);
+ * only inline-origin classes count, since named types are already reusable.
+ * Fires independently of the name-collision warnings — a distinct smell (same
+ * shape, not same name).
+ */
+function warnDuplicateInlineShapes(ctx: WalkContext): void {
+  const groups = new Map<string, string[]>()
+  for (const cls of ctx.classes) {
+    if (cls.origin !== 'inline') continue
+    const sig = classShapeSignature(cls)
+    const group = groups.get(sig)
+    if (group) group.push(cls.name)
+    else groups.set(sig, [cls.name])
+  }
+  for (const [, names] of groups) {
+    if (names.length < 2) continue
+    ctx.warnings.push(
+      `Inline objects ${joinClassNames(names)} share an identical shape — consider extracting a shared named type (queryable by _type, referenceable, and reusable).`,
+    )
+  }
+}
+
+/**
+ * Structural shape signature of a class — its sorted `name:type` field pairs,
+ * cardinality-independent. Two inline objects with the same signature are
+ * candidates for extraction into one shared named type (issue #29).
+ */
+function classShapeSignature(cls: CanonicalClass): string {
+  return cls.fields
+    .map((f) => `${f.name}:${charSignature(f.char)}`)
+    .sort()
+    .join('|')
+}
+
+/** Join class names for a warning: `'A' and 'B'` for two, `'A', 'B', 'C'` for more. */
+function joinClassNames(names: string[]): string {
+  const quoted = [...names].sort().map((n) => `'${n}'`)
+  if (quoted.length === 2) return `${quoted[0]} and ${quoted[1]}`
+  return quoted.join(', ')
 }

@@ -45,11 +45,17 @@ One warning is different in kind: the schema-adapter's **read guard**. If `useSc
 - **How** — `walk()` pre-pass grouping every emitted top-level class by its bare name; groups of >1 warn once (and suppress a second warning on the same bare name).
 - **Message** — _"The types 'a', 'b' all map to the class name 'Bare'. Each is qualified by its source name to keep them distinct in the diagram — consider giving them unique names."_
 
+### 6. Inline-object shapes are duplicated
+
+- **Detects** — two or more inline anonymous objects with an identical shape (sorted `name:type` field pairs, cardinality-independent); only `origin: 'inline'` classes are compared ([#29](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/29)).
+- **Why** — the "prefer named, reusable types over anonymous inline objects" lever. A shared named type is queryable by `_type`, referenceable, and mutatable — far easier for humans and AI agents to act on than "the anonymous object on `X.y`". **Advisory only:** identical shape is a strong signal, but two genuinely-different objects can coincidentally match (e.g. two `{title, url}`), so it never blocks.
+- **How** — `walk()` post-pass grouping inline classes by structural signature; groups of >1 warn once. Fires independently of the name-collision warnings (a distinct smell: same shape, not same name).
+- **Message** — _"Inline objects 'Foo' and 'Bar' share an identical shape — consider extracting a shared named type (queryable by _type, referenceable, and reusable)."_
+
 ## Under consideration
 
 Tracked as issues, not yet implemented (each links the analysis and the risk/nuance):
 
-- **Duplicated inline-object shapes** — [#29](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/29). Advisory: suggest extracting a shared named type (the "prefer named/reusable types" lever).
 - **Unreferenced named object types** — [#30](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/30). Advisory: a named object that nothing references.
 
 ## Adding a new warning

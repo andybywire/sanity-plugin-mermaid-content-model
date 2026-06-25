@@ -101,7 +101,7 @@ Cardinality here is **information design, not runtime validation** — the diagr
 ### Validation — partially represented
 Reflected: `Rule.required()`, array `Rule.min/max`, and the *presence* of `Rule.custom()` / other constraints (via the cardinality column + `custom` marker). **Not** represented: the *bodies* of custom validators, severity (`warning` vs `error`), `hidden`/`readOnly`/`initialValue`, conditional fields, custom inputs.
 
-Separately from validation, the walker surfaces **non-blocking modeling-smell warnings** (name collisions, reused field names with different shapes, dropped edges) into `model.warnings` for the "Potential Issues" menu — cataloged in [warnings.md](warnings.md).
+Separately from validation, the walker surfaces **non-blocking modeling-smell warnings** (name collisions, reused field names with different shapes, duplicated inline-object shapes, dropped edges) into `model.warnings` for the "Potential Issues" menu — cataloged in [warnings.md](warnings.md).
 
 ### Visual grouping
 Mermaid `classDiagram` has no `subgraph`. The document-vs-object grouping is conveyed implicitly through stereotype fill colour; no `direction` hint is added.

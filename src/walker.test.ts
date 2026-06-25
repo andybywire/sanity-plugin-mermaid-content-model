@@ -1096,6 +1096,116 @@ describe('walker', () => {
     expect(model.warnings.some((w) => w.includes("'title'"))).toBe(false)
   })
 
+  // Advisory smell (issue #29): two or more inline anonymous objects with an
+  // identical shape likely want to be one shared NAMED type (queryable,
+  // referenceable, reusable). Shape = sorted field name:type, ignoring
+  // cardinality; only inline-origin classes are considered.
+  it('warns when two inline objects share an identical shape (issue #29)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [
+          {
+            name: 'home',
+            type: 'object',
+            fields: [
+              {name: 'street', type: 'string'},
+              {name: 'city', type: 'string'},
+            ],
+          },
+          {
+            name: 'work',
+            type: 'object',
+            fields: [
+              {name: 'street', type: 'string'},
+              {name: 'city', type: 'string'},
+            ],
+          },
+        ],
+      },
+    ]
+    const model = walk(types)
+    expect(
+      model.warnings.some(
+        (w) => w.includes("'Home'") && w.includes("'Work'") && /identical shape/i.test(w),
+      ),
+    ).toBe(true)
+  })
+
+  it('does not warn when inline objects have different shapes (issue #29)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [
+          {name: 'home', type: 'object', fields: [{name: 'street', type: 'string'}]},
+          {name: 'work', type: 'object', fields: [{name: 'phone', type: 'string'}]},
+        ],
+      },
+    ]
+    const model = walk(types)
+    expect(model.warnings.some((w) => /identical shape/i.test(w))).toBe(false)
+  })
+
+  it('detects duplicate shapes structurally, ignoring cardinality (issue #29)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [
+          {
+            name: 'home',
+            type: 'object',
+            // street required here, optional in `work` — same shape regardless
+            fields: [{name: 'street', type: 'string', validation: (R: any) => R.required()}],
+          },
+          {name: 'work', type: 'object', fields: [{name: 'street', type: 'string'}]},
+        ],
+      },
+    ]
+    const model = walk(types)
+    expect(
+      model.warnings.some(
+        (w) => w.includes("'Home'") && w.includes("'Work'") && /identical shape/i.test(w),
+      ),
+    ).toBe(true)
+  })
+
+  it('does not flag a named object that merely shares a shape with an inline object (issue #29)', () => {
+    const types = [
+      {name: 'address', type: 'object', fields: [{name: 'street', type: 'string'}]},
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [{name: 'home', type: 'object', fields: [{name: 'street', type: 'string'}]}],
+      },
+    ]
+    const model = walk(types)
+    // only one inline object (Home); the named Address is excluded from the check
+    expect(model.warnings.some((w) => /identical shape/i.test(w))).toBe(false)
+  })
+
+  it('emits a single warning naming every member of a duplicate-shape group (issue #29)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [
+          {name: 'home', type: 'object', fields: [{name: 'street', type: 'string'}]},
+          {name: 'work', type: 'object', fields: [{name: 'street', type: 'string'}]},
+          {name: 'billing', type: 'object', fields: [{name: 'street', type: 'string'}]},
+        ],
+      },
+    ]
+    const model = walk(types)
+    const shapeWarnings = model.warnings.filter((w) => /identical shape/i.test(w))
+    expect(shapeWarnings).toHaveLength(1)
+    expect(shapeWarnings[0]).toContain("'Billing'")
+    expect(shapeWarnings[0]).toContain("'Home'")
+    expect(shapeWarnings[0]).toContain("'Work'")
+  })
+
   it('sorts classes with documents alphabetical first, then objects alphabetical', () => {
     // Declaration order is deliberately scrambled to prove sorting is real.
     const types = [

@@ -46,6 +46,10 @@ import {defineArrayMember, defineField, defineType, type SchemaTypeDefinition} f
  *   disambiguates them base-first by source name (`PriceTag_priceTag` /
  *   `PriceTag_price_tag`) and warns; `page` composes both, so the edges show the
  *   distinct targets.
+ * - duplicated inline-object shapes (issue #29): `author.homeAddress` and
+ *   `author.workAddress` are two inline objects with the same `{street, city}`
+ *   shape, so the walker advises extracting a shared named type — the advisory
+ *   half of "render as-authored, flag the smells."
  * - an intentional orphan object (`orphanWidget`) — defined but referenced by
  *   nothing, so "Hide Orphan Objects" has something to act on
  * - validation rules so the probe has real cardinality to recover
@@ -59,6 +63,26 @@ const author = defineType({
     defineField({name: 'name', type: 'string', validation: (rule) => rule.required()}),
     defineField({name: 'bio', type: 'array', of: [defineArrayMember({type: 'block'})]}),
     defineField({name: 'avatar', type: 'image'}),
+    // Two inline objects with an identical shape (issue #29): `homeAddress` and
+    // `workAddress` both become inline classes with the same `{street, city}`
+    // fields. The walker flags them in Potential Issues — they likely want to be
+    // one shared named `address` type — rather than silently rendering twins.
+    defineField({
+      name: 'homeAddress',
+      type: 'object',
+      fields: [
+        defineField({name: 'street', type: 'string'}),
+        defineField({name: 'city', type: 'string'}),
+      ],
+    }),
+    defineField({
+      name: 'workAddress',
+      type: 'object',
+      fields: [
+        defineField({name: 'street', type: 'string'}),
+        defineField({name: 'city', type: 'string'}),
+      ],
+    }),
   ],
 })
 
