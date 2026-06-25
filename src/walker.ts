@@ -419,7 +419,7 @@ function collectPortableTextEmbedMembers(of: RawArrayMember[]): RawArrayMember[]
   const seen = new Set<string>()
   const unique: RawArrayMember[] = []
   for (const m of candidates) {
-    const key = `${m.type} ${m.name ?? ''} ${firstReferenceTarget(m.to) ?? ''}`
+    const key = `${m.type} ${m.name ?? ''} ${firstReferenceTarget(m.to) ?? ''}`
     if (seen.has(key)) continue
     seen.add(key)
     unique.push(m)
