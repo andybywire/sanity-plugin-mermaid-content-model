@@ -38,11 +38,17 @@ One warning is different in kind: the schema-adapter's **read guard**. If `useSc
 - **How** — `walk()` post-pass building per-name field signatures.
 - **Message** — _"Field 'X' has differing types across classes (…); the diagram shows each class's own field but the name reuse may be worth reviewing."_
 
+### 5. Two named top-level types collide under `pascalCase`
+
+- **Detects** — two or more distinct top-level type names that `pascalCase` to the same class name (`blogPost` + `blog_post` → `BlogPost`). The named-type analogue of #1 ([#28](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/28)).
+- **Why** — they would emit two same-named classes and merge into one Mermaid box, silently conflating distinct types. Disambiguated base-first by source name (`BlogPost_blogPost` / `BlogPost_blog_post`), with references retargeted so edges stay intact. The emitted-class namespace covers documents, objects, images, files, and Portable Text aliases, closing the earlier `namedClassNames` gap.
+- **How** — `walk()` pre-pass grouping every emitted top-level class by its bare name; groups of >1 warn once (and suppress a second warning on the same bare name).
+- **Message** — _"The types 'a', 'b' all map to the class name 'Bare'. Each is qualified by its source name to keep them distinct in the diagram — consider giving them unique names."_
+
 ## Under consideration
 
 Tracked as issues, not yet implemented (each links the analysis and the risk/nuance):
 
-- **Named types colliding under `pascalCase` silently merge** — [#28](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/28). Disambiguate + warn, like #2; also closes a `namedClassNames` completeness gap (`file` types, PT aliases).
 - **Duplicated inline-object shapes** — [#29](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/29). Advisory: suggest extracting a shared named type (the "prefer named/reusable types" lever).
 - **Unreferenced named object types** — [#30](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/30). Advisory: a named object that nothing references.
 
