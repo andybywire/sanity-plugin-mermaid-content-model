@@ -1096,6 +1096,164 @@ describe('walker', () => {
     expect(model.warnings.some((w) => w.includes("'title'"))).toBe(false)
   })
 
+  // Advisory smell (issue #29): two or more inline anonymous objects with an
+  // identical shape likely want to be one shared NAMED type (queryable,
+  // referenceable, reusable). Shape = sorted field name:type, ignoring
+  // cardinality; only inline-origin classes are considered.
+  it('warns when two inline objects share an identical shape (issue #29)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [
+          {
+            name: 'home',
+            type: 'object',
+            fields: [
+              {name: 'street', type: 'string'},
+              {name: 'city', type: 'string'},
+            ],
+          },
+          {
+            name: 'work',
+            type: 'object',
+            fields: [
+              {name: 'street', type: 'string'},
+              {name: 'city', type: 'string'},
+            ],
+          },
+        ],
+      },
+    ]
+    const model = walk(types)
+    expect(
+      model.warnings.some(
+        (w) => w.includes("'Home'") && w.includes("'Work'") && /identical shape/i.test(w),
+      ),
+    ).toBe(true)
+  })
+
+  it('does not warn when inline objects have different shapes (issue #29)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [
+          {name: 'home', type: 'object', fields: [{name: 'street', type: 'string'}]},
+          {name: 'work', type: 'object', fields: [{name: 'phone', type: 'string'}]},
+        ],
+      },
+    ]
+    const model = walk(types)
+    expect(model.warnings.some((w) => /identical shape/i.test(w))).toBe(false)
+  })
+
+  it('detects duplicate shapes structurally, ignoring cardinality (issue #29)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [
+          {
+            name: 'home',
+            type: 'object',
+            // street required here, optional in `work` — same shape regardless
+            fields: [{name: 'street', type: 'string', validation: (R: any) => R.required()}],
+          },
+          {name: 'work', type: 'object', fields: [{name: 'street', type: 'string'}]},
+        ],
+      },
+    ]
+    const model = walk(types)
+    expect(
+      model.warnings.some(
+        (w) => w.includes("'Home'") && w.includes("'Work'") && /identical shape/i.test(w),
+      ),
+    ).toBe(true)
+  })
+
+  it('does not flag a named object that merely shares a shape with an inline object (issue #29)', () => {
+    const types = [
+      {name: 'address', type: 'object', fields: [{name: 'street', type: 'string'}]},
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [{name: 'home', type: 'object', fields: [{name: 'street', type: 'string'}]}],
+      },
+    ]
+    const model = walk(types)
+    // only one inline object (Home); the named Address is excluded from the check
+    expect(model.warnings.some((w) => /identical shape/i.test(w))).toBe(false)
+  })
+
+  it('emits a single warning naming every member of a duplicate-shape group (issue #29)', () => {
+    const types = [
+      {
+        name: 'doc',
+        type: 'document',
+        fields: [
+          {name: 'home', type: 'object', fields: [{name: 'street', type: 'string'}]},
+          {name: 'work', type: 'object', fields: [{name: 'street', type: 'string'}]},
+          {name: 'billing', type: 'object', fields: [{name: 'street', type: 'string'}]},
+        ],
+      },
+    ]
+    const model = walk(types)
+    const shapeWarnings = model.warnings.filter((w) => /identical shape/i.test(w))
+    expect(shapeWarnings).toHaveLength(1)
+    expect(shapeWarnings[0]).toContain("'Billing'")
+    expect(shapeWarnings[0]).toContain("'Home'")
+    expect(shapeWarnings[0]).toContain("'Work'")
+  })
+
+  // Advisory smell (issue #30): a named `object` type with zero incoming edges
+  // is dead weight — objects only exist embedded in something. Documents (own
+  // identity), images/files (a defined-but-unused asset type is plausible), and
+  // inline/PT classes are exempt. Static and schema-level, distinct from the
+  // visibility-dependent "Hide Orphan Objects" button.
+  it('warns about a named object type that nothing references (issue #30)', () => {
+    const types = [
+      {name: 'doc', type: 'document', fields: [{name: 'title', type: 'string'}]},
+      {name: 'widget', type: 'object', fields: [{name: 'label', type: 'string'}]},
+    ]
+    const model = walk(types)
+    expect(model.warnings.some((w) => w.includes("'Widget'") && /never referenced/i.test(w))).toBe(
+      true,
+    )
+  })
+
+  it('does not warn about a named object that is referenced (issue #30)', () => {
+    const types = [
+      {name: 'doc', type: 'document', fields: [{name: 'widget', type: 'widget'}]},
+      {name: 'widget', type: 'object', fields: [{name: 'label', type: 'string'}]},
+    ]
+    const model = walk(types)
+    expect(model.warnings.some((w) => /never referenced/i.test(w))).toBe(false)
+  })
+
+  it('exempts unreferenced documents, images, and files from the unused-object warning (issue #30)', () => {
+    const types = [
+      {name: 'page', type: 'document', fields: []},
+      {name: 'heroImage', type: 'image', fields: [{name: 'alt', type: 'string'}]},
+      {name: 'download', type: 'file', fields: [{name: 'label', type: 'string'}]},
+    ]
+    const model = walk(types)
+    expect(model.warnings.some((w) => /never referenced/i.test(w))).toBe(false)
+  })
+
+  it('emits one warning per unreferenced object (issue #30)', () => {
+    const types = [
+      {name: 'doc', type: 'document', fields: []},
+      {name: 'widget', type: 'object', fields: [{name: 'a', type: 'string'}]},
+      {name: 'gadget', type: 'object', fields: [{name: 'b', type: 'string'}]},
+    ]
+    const model = walk(types)
+    const unused = model.warnings.filter((w) => /never referenced/i.test(w))
+    expect(unused).toHaveLength(2)
+    expect(unused.some((w) => w.includes("'Widget'"))).toBe(true)
+    expect(unused.some((w) => w.includes("'Gadget'"))).toBe(true)
+  })
+
   it('sorts classes with documents alphabetical first, then objects alphabetical', () => {
     // Declaration order is deliberately scrambled to prove sorting is real.
     const types = [
