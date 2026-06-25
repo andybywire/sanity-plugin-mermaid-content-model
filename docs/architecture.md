@@ -50,7 +50,7 @@ Two rejected alternatives:
 ### Fields & relationships
 - **Primitive field** → `+fieldName: type [cardinality]` in the class body.
 - **Object field** (named composition target or inline anonymous object) → field line **plus** a composition edge `Parent *-- Child` (filled diamond).
-- **Reference field** → field line **plus** an association edge `Parent --> Target` (arrow).
+- **Reference field** → field line **plus** an association edge `Parent --> Target` (arrow). A **multi-target** (polymorphic) reference (`to: [{type: 'a'}, {type: 'b'}]`) emits **one edge per target** and lists all of them in the field label, pipe-joined (`+related: Article|Event`) — rendered as authored rather than collapsed to the first target (issue #27). Composition is always single-target; only references can be multi-target (the `ObjectChar` model splits the two — `target` vs `targets`).
 - **Portable Text** → depends on contents: **block-only** PT is a scalar label (`+overview: PortableText [0..1]`), no class/edge; PT that **also** carries class-able embeds is promoted to its own class (see *Portable Text* below).
 - **Image & file fields** → shape-dependent (`file` follows `image` throughout):
   - A **named top-level** image/file type (`defineType({type: 'image', …})`) is an object-stereotype class (origin `image`/`file`), with a synthetic `+asset: url [1]` **prepended** (so the primary content is explicit); Sanity-internal `hotspot`/`crop`/`media` are skipped; user fields follow in declaration order. A field referencing it composes in (`Parent *-- HeroImage`).

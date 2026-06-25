@@ -16,6 +16,7 @@ import type {
   Edge,
   FieldChar,
 } from './walker'
+import {objectCharTargets} from './walker'
 
 const INDENT = '  '
 
@@ -79,13 +80,15 @@ function renderCardinalityCore(c: Cardinality): string {
 /**
  * The type label shown after the colon in a field line. For primitives,
  * the lowercase Sanity type name; for portable text, `PortableText`; for
- * object kinds, the target class name (which is itself pascal-cased by the
- * walker).
+ * object kinds, the target class name(s) — pascal-cased by the walker, and
+ * pipe-joined (`Article|Event`) for a multi-target reference.
  */
 export function fieldTypeLabel(char: FieldChar): string {
   if (char.kind === 'primitive') return char.prim
   if (char.kind === 'portableText') return 'PortableText'
-  return char.target // object
+  // object: the single target for composition, or all targets pipe-joined for a
+  // multi-target (polymorphic) reference (issue #27).
+  return objectCharTargets(char).join('|')
 }
 
 /**

@@ -42,7 +42,6 @@ One warning is different in kind: the schema-adapter's **read guard**. If `useSc
 
 Tracked as issues, not yet implemented (each links the analysis and the risk/nuance):
 
-- **Multi-target references render only the first target** — [#27](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/27). A faithfulness fix (render an edge per `to` target), not a warning.
 - **Named types colliding under `pascalCase` silently merge** — [#28](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/28). Disambiguate + warn, like #2; also closes a `namedClassNames` completeness gap (`file` types, PT aliases).
 - **Duplicated inline-object shapes** — [#29](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/29). Advisory: suggest extracting a shared named type (the "prefer named/reusable types" lever).
 - **Unreferenced named object types** — [#30](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/30). Advisory: a named object that nothing references.

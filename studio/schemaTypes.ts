@@ -16,6 +16,9 @@ import {defineArrayMember, defineField, defineType, type SchemaTypeDefinition} f
  *   the three positions a PT embed can occupy (see issue #2)
  * - references: document→document (`author`, `relatedArticles`) and
  *   document→concept (`topics` → `skosConcept`)
+ * - a multi-target (polymorphic) reference (issue #27): `page.related` points at
+ *   `article` OR `author`, so it renders one edge per target and a pipe-joined
+ *   field label (`+related: Article|Author`) rather than dropping all but the first
  * - the range of image shapes (issue #9): a bare inline image as a scalar leaf
  *   (`author.avatar`), an array of bare images as a scalar leaf
  *   (`article.gallery`), an inline image promoted to a class by its own
@@ -275,6 +278,15 @@ const page = defineType({
       title: 'Body',
       type: 'array',
       of: [defineArrayMember({type: 'block'}), defineArrayMember({type: 'calloutBox'})],
+    }),
+    // A multi-target (polymorphic) reference (issue #27): one field with two
+    // possible target types → one edge per target, field label pipe-joined
+    // (`+related: Article|Author`), rather than dropping all but the first.
+    defineField({
+      name: 'related',
+      title: 'Related',
+      type: 'reference',
+      to: [{type: 'article'}, {type: 'author'}],
     }),
   ],
 })

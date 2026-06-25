@@ -112,11 +112,39 @@ describe('renderField', () => {
       renderField(
         baseField({
           name: 'tags',
-          char: {kind: 'object', target: 'SkosConcept', relation: 'reference', array: true},
+          char: {kind: 'object', relation: 'reference', targets: ['SkosConcept'], array: true},
           cardinality: {min: 0, max: '*'},
         }),
       ),
     ).toBe('+tags: SkosConcept [0..*]')
+  })
+
+  it('joins multiple reference targets with a pipe in the field label (issue #27)', () => {
+    expect(
+      fieldTypeLabel({
+        kind: 'object',
+        relation: 'reference',
+        targets: ['Article', 'Event'],
+        array: false,
+      }),
+    ).toBe('Article|Event')
+  })
+
+  it('renders a multi-target reference field row with pipe-joined targets (issue #27)', () => {
+    expect(
+      renderField(
+        baseField({
+          name: 'related',
+          char: {
+            kind: 'object',
+            relation: 'reference',
+            targets: ['Article', 'Event'],
+            array: false,
+          },
+          cardinality: {min: 0, max: 1},
+        }),
+      ),
+    ).toBe('+related: Article|Event [0..1]')
   })
 })
 
