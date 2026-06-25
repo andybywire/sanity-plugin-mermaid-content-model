@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.2](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.3.1...v0.3.2) (2026-06-25)
+
+### Bug Fixes
+
+* follow named-type aliases so plugin-contributed types connect ([a62f8ad](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/a62f8ad308ca7f6fbd52ac4478da260b43b3ce9b)), closes [#32](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/32)
+
 ## [0.3.1](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.3.0...v0.3.1) (2026-06-23)
 
 ### Bug Fixes
