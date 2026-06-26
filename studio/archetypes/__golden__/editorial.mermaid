@@ -1,0 +1,62 @@
+classDiagram
+  class Author:::document {
+    <<document>>
+    +name: string [1]
+    +slug: string [0..1]
+    +bio: PortableText [0..1]
+    +avatar: image [0..1]
+  }
+  class Category:::document {
+    <<document>>
+    +title: string [1]
+    +description: string [0..1]
+  }
+  class Post:::document {
+    <<document>>
+    +title: string [1]
+    +slug: string [0..1]
+    +publishedAt: datetime [0..1]
+    +author: Author [1]
+    +categories: Category [0..*]
+    +mainImage: MainImage [0..1]
+    +excerpt: string [0..1]
+    +body: Body [0..1]
+    +seo: Seo [0..1]
+  }
+  class Body:::object {
+    <<object>>
+    +block: PortableText [0..*]
+    +link: Link [0..*]
+    +pullQuote: PullQuote [0..*]
+  }
+  class Link:::object {
+    <<object>>
+    +href: url [1]
+    +openInNewTab: boolean [0..1]
+  }
+  class MainImage:::object {
+    <<object>>
+    +asset: url [1]
+    +alt: string [1]
+    +caption: string [0..1]
+  }
+  class PullQuote:::object {
+    <<object>>
+    +quote: string [1]
+    +attribution: string [0..1]
+  }
+  class Seo:::object {
+    <<object>>
+    +metaTitle: string [0..1]
+    +metaDescription: string [0..1]
+    +ogImage: image [0..1]
+  }
+  Body *-- Link : link
+  Body *-- PullQuote : pullQuote
+  Post --> Author : author
+  Post *-- Body : body
+  Post --> Category : categories
+  Post *-- MainImage : mainImage
+  Post *-- Seo : seo
+  classDef document fill:#2276FC,stroke:#7AACFD,color:#fff
+  classDef object fill:#7B8CA8,stroke:#AFBACA,color:#fff

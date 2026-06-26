@@ -1,0 +1,188 @@
+classDiagram
+  class Article:::document {
+    <<document>>
+    +title: string [1]
+    +slug: string [0..1]
+    +publishedAt: datetime [0..1]
+    +attachment: file [0..1]
+    +readingTime: number [0..1, custom]
+    +heroImage: HeroImage [0..1]
+    +coverImage: CoverImage [0..1]
+    +gallery: image [0..*]
+    +seo: Seo [0..1]
+    +author: Author [1]
+    +topics: SkosConcept [0..*]
+    +relatedArticles: Article [0..5]
+    +body: Body_Article [0..1]
+  }
+  class Author:::document {
+    <<document>>
+    +name: string [1]
+    +bio: PortableText [0..1]
+    +avatar: image [0..1]
+    +featuredArticle: Article [0..1]
+    +homeAddress: HomeAddress [0..1]
+    +workAddress: WorkAddress [0..1]
+  }
+  class Page:::document {
+    <<document>>
+    +title: string [1]
+    +body: Body_Page [0..1]
+    +related: Article|Author [0..1]
+    +tag: PriceTag_priceTag [0..1]
+    +legacyTag: PriceTag_price_tag [0..1]
+  }
+  class SkosConcept:::document {
+    <<document>>
+    +prefLabel: string [1, custom]
+    +definition: string [0..1]
+    +example: string [0..1]
+    +scopeNote: string [0..1]
+    +altLabel: string [0..*, custom]
+    +hiddenLabel: string [0..*, custom]
+    +baseIri: url [1]
+    +conceptId: string [0..1]
+    +broader: SkosConcept [0..*]
+    +related: SkosConcept [0..*]
+    +historyNote: string [0..1]
+    +editorialNote: string [0..1]
+    +changeNote: string [0..1]
+  }
+  class SkosConceptScheme:::document {
+    <<document>>
+    +title: string [0..1]
+    +description: string [0..1]
+    +controls: boolean [0..1]
+    +baseIri: url [1]
+    +schemeId: string [0..1]
+    +topConcepts: SkosConcept [0..*, custom]
+    +concepts: SkosConcept [0..*, custom]
+  }
+  class Body_Article:::object {
+    <<object>>
+    +block: PortableText [0..*]
+    +inlineHighlight: InlineHighlight [0..*]
+    +link: Link [0..*]
+    +calloutBox: CalloutBox [0..*]
+    +figure: Figure [0..*]
+    +inlineImage: InlineImage [0..*]
+    +minimalInlineImage: image [0..*]
+    +pre: Code [0..*]
+    +dataTableBlock: DataTable [0..*]
+  }
+  class Body_Page:::object {
+    <<object>>
+    +block: PortableText [0..*]
+    +calloutBox: CalloutBox [0..*]
+  }
+  class CalloutBox:::object {
+    <<object>>
+    +tone: string [0..1]
+    +body: string [1]
+  }
+  class Code:::object {
+    <<object>>
+    +language: string [0..1]
+    +filename: string [0..1]
+    +code: string [0..1]
+    +highlightedLines: number [0..*]
+  }
+  class CoverImage:::object {
+    <<object>>
+    +asset: url [1]
+    +alt: string [0..1]
+    +caption: string [0..1]
+  }
+  class DataTable:::object {
+    <<object>>
+    +caption: string [0..1]
+    +rows: TableRow [0..*]
+  }
+  class Figure:::object {
+    <<object>>
+    +asset: url [1]
+    +caption: string [0..1]
+    +altText: string [0..1]
+    +outline: boolean [0..1]
+  }
+  class HeroImage:::object {
+    <<object>>
+    +asset: url [1]
+    +alt: string [1]
+    +caption: string [0..1]
+  }
+  class HomeAddress:::object {
+    <<object>>
+    +street: string [0..1]
+    +city: string [0..1]
+  }
+  class InlineHighlight:::object {
+    <<object>>
+    +text: string [1]
+  }
+  class InlineImage:::object {
+    <<object>>
+    +asset: url [1]
+    +altText: string [0..1]
+    +floatLeft: boolean [0..1]
+  }
+  class Link:::object {
+    <<object>>
+    +href: url [1]
+  }
+  class OrphanWidget:::object {
+    <<object>>
+    +label: string [0..1]
+  }
+  class PriceTag_price_tag:::object {
+    <<object>>
+    +label: string [0..1]
+  }
+  class PriceTag_priceTag:::object {
+    <<object>>
+    +amount: number [0..1]
+  }
+  class Seo:::object {
+    <<object>>
+    +metaTitle: string [0..1, custom]
+    +metaDescription: string [0..1, custom]
+  }
+  class TableRow:::object {
+    <<object>>
+    +cells: string [0..*]
+  }
+  class WorkAddress:::object {
+    <<object>>
+    +street: string [0..1]
+    +city: string [0..1]
+  }
+  Article --> Author : author
+  Article *-- Body_Article : body
+  Article *-- CoverImage : coverImage
+  Article *-- HeroImage : heroImage
+  Article --> Article : relatedArticles
+  Article *-- Seo : seo
+  Article --> SkosConcept : topics
+  Author --> Article : featuredArticle
+  Author *-- HomeAddress : homeAddress
+  Author *-- WorkAddress : workAddress
+  Body_Article *-- CalloutBox : calloutBox
+  Body_Article *-- DataTable : dataTableBlock
+  Body_Article *-- Figure : figure
+  Body_Article *-- InlineHighlight : inlineHighlight
+  Body_Article *-- InlineImage : inlineImage
+  Body_Article *-- Link : link
+  Body_Article *-- Code : pre
+  Body_Page *-- CalloutBox : calloutBox
+  DataTable *-- TableRow : rows
+  Page *-- Body_Page : body
+  Page *-- PriceTag_price_tag : legacyTag
+  Page --> Article : related
+  Page --> Author : related
+  Page *-- PriceTag_priceTag : tag
+  SkosConcept --> SkosConcept : broader
+  SkosConcept --> SkosConcept : related
+  SkosConceptScheme --> SkosConcept : concepts
+  SkosConceptScheme --> SkosConcept : topConcepts
+  classDef document fill:#2276FC,stroke:#7AACFD,color:#fff
+  classDef object fill:#7B8CA8,stroke:#AFBACA,color:#fff

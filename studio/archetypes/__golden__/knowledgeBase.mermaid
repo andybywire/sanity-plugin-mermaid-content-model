@@ -1,0 +1,83 @@
+classDiagram
+  class GlossaryEntry:::document {
+    <<document>>
+    +term: string [1]
+    +slug: string [0..1]
+    +concept: SkosConcept [1]
+    +usageNotes: PortableText [0..1]
+    +codeExample: Code [0..1]
+    +seeAlso: GlossaryEntry [0..*]
+  }
+  class ReferenceResource:::document {
+    <<document>>
+    +title: string [1]
+    +slug: string [0..1]
+    +resourceType: string [0..1]
+    +url: url [0..1]
+    +attachment: file [0..1]
+    +summary: PortableText [0..1]
+    +topics: SkosConcept [0..*]
+  }
+  class SkosConcept:::document {
+    <<document>>
+    +prefLabel: string [1, custom]
+    +definition: string [0..1]
+    +example: string [0..1]
+    +scopeNote: string [0..1]
+    +altLabel: string [0..*, custom]
+    +hiddenLabel: string [0..*, custom]
+    +baseIri: url [1]
+    +conceptId: string [0..1]
+    +broader: SkosConcept [0..*]
+    +related: SkosConcept [0..*]
+    +historyNote: string [0..1]
+    +editorialNote: string [0..1]
+    +changeNote: string [0..1]
+  }
+  class SkosConceptScheme:::document {
+    <<document>>
+    +title: string [0..1]
+    +description: string [0..1]
+    +controls: boolean [0..1]
+    +baseIri: url [1]
+    +schemeId: string [0..1]
+    +topConcepts: SkosConcept [0..*, custom]
+    +concepts: SkosConcept [0..*, custom]
+  }
+  class Tutorial:::document {
+    <<document>>
+    +title: string [1]
+    +slug: string [0..1]
+    +topics: SkosConcept [0..*]
+    +estimatedMinutes: number [0..1]
+    +steps: TutorialStep [0..*]
+    +snippets: Code [0..*]
+    +prerequisites: Tutorial [0..*]
+  }
+  class Code:::object {
+    <<object>>
+    +language: string [0..1]
+    +filename: string [0..1]
+    +code: string [0..1]
+    +highlightedLines: number [0..*]
+  }
+  class TutorialStep:::object {
+    <<object>>
+    +instruction: string [0..1]
+    +snippet: Code [0..1]
+  }
+  GlossaryEntry *-- Code : codeExample
+  GlossaryEntry --> SkosConcept : concept
+  GlossaryEntry --> GlossaryEntry : seeAlso
+  ReferenceResource --> SkosConcept : topics
+  SkosConcept --> SkosConcept : broader
+  SkosConcept --> SkosConcept : related
+  SkosConceptScheme --> SkosConcept : concepts
+  SkosConceptScheme --> SkosConcept : topConcepts
+  Tutorial --> Tutorial : prerequisites
+  Tutorial *-- Code : snippets
+  Tutorial *-- TutorialStep : steps
+  Tutorial --> SkosConcept : topics
+  TutorialStep *-- Code : snippet
+  classDef document fill:#2276FC,stroke:#7AACFD,color:#fff
+  classDef object fill:#7B8CA8,stroke:#AFBACA,color:#fff

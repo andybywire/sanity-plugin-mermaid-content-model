@@ -11,7 +11,11 @@ export default defineConfig({
     // needs — mermaid.render, clipboard, canvas — are mocked in component tests.
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // src/** — the pure pipeline + adapter unit/integration suites.
+    // studio/archetypes/** — the archetype golden-Mermaid tests (issue #19),
+    // which live in studio/ so they can import the real dev plugins
+    // (taxonomy-manager, code-input) that only resolve from studio/node_modules.
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'studio/archetypes/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/dist/**'],
   },
 })

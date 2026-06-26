@@ -1,0 +1,52 @@
+classDiagram
+  class Brand:::document {
+    <<document>>
+    +name: string [1]
+    +logo: image [0..1]
+    +website: url [0..1]
+  }
+  class Category:::document {
+    <<document>>
+    +title: string [1]
+    +parent: Category [0..1]
+  }
+  class Product:::document {
+    <<document>>
+    +title: string [1]
+    +slug: string [0..1]
+    +brand: Brand [0..1]
+    +categories: Category [0..*]
+    +price: Price [0..1]
+    +variants: Variant [0..*]
+    +gallery: image [0..*]
+    +description: string [0..1]
+    +relatedProducts: Product [0..*]
+  }
+  class Price:::object {
+    <<object>>
+    +amount: number [1]
+    +currency: string [0..1]
+  }
+  class Variant:::object {
+    <<object>>
+    +title: string [0..1]
+    +sku: string [0..1]
+    +price: Price [0..1]
+    +options: VariantOption [0..*]
+    +inStock: boolean [0..1]
+  }
+  class VariantOption:::object {
+    <<object>>
+    +name: string [0..1]
+    +value: string [0..1]
+  }
+  Category --> Category : parent
+  Product --> Brand : brand
+  Product --> Category : categories
+  Product *-- Price : price
+  Product --> Product : relatedProducts
+  Product *-- Variant : variants
+  Variant *-- VariantOption : options
+  Variant *-- Price : price
+  classDef document fill:#2276FC,stroke:#7AACFD,color:#fff
+  classDef object fill:#7B8CA8,stroke:#AFBACA,color:#fff
