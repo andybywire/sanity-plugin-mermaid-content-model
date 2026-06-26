@@ -4,7 +4,7 @@ Evergreen design direction and architectural guardrails for the in-Studio Conten
 
 ## Design direction
 
-- **Top-nav tool, Vision-like.** Maximise the space Studio affords plugins: controls across the top, the bulk of the screen devoted to the diagram work area. Diagram zoom/pan at the Mermaid defaults.
+- **Top-nav tool, Vision-like.** Maximise the space Studio affords plugins: controls across the top, the bulk of the screen devoted to the diagram work area. The diagram fits to the viewport on first render and **re-fits automatically whenever the Elements selection changes its size** (issue #33), so the user needn't hit Reset after every adjustment; theme toggles and manual pan/zoom keep the current view. Pan/zoom is `react-zoom-pan-pinch`, with the **max zoom scaled to the post-filter class count** (`src/tool/zoom-scale.ts`) so large diagrams keep enough zoom-in headroom to read a class while small ones don't zoom in absurdly close (issue #24).
 - **Portable emitted Mermaid.** A goal is that `Copy Code` output renders well in other Mermaid apps (mermaid.live, GitHub, etc.) **without app-specific config**. This constrains theming: box palettes are emitted as standard `classDef` lines; avoid `themeVariables` / `base`-theme tricks that only render in-app.
 - **Follow Studio's colour scheme; no in-plugin theme controls.** The tool reads `useRootTheme().scheme` and re-renders live on light/dark switch — it doesn't introduce its own theme UI.
 - **Dependent objects follow their parent.** Inline and Portable Text objects are inherently part of whatever contains them, so they have no independent visibility toggle — they show only when reachable from a visible document. (Named objects toggle individually; this asymmetry is intentional.)

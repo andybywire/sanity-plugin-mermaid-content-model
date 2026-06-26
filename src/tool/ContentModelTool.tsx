@@ -17,12 +17,8 @@ import {CopyPngButton} from './CopyPngButton'
 import {ElementsMenu} from './ElementsMenu'
 import {MermaidView} from './MermaidView'
 import {WarningsMenu} from './WarningsMenu'
+import {maxScaleFor, MIN_SCALE} from './zoom-scale'
 import {ZoomControls} from './ZoomControls'
-
-// Pan/zoom scale bounds. min low enough to fit very large diagrams; max high
-// enough to zoom into detail on a fitted large diagram.
-const MIN_SCALE = 1
-const MAX_SCALE = 15
 
 /**
  * The top-nav tool. Reads the fully-composed Studio schema via `useSchema()`,
@@ -53,10 +49,13 @@ export function ContentModelTool(): React.JSX.Element {
   // exactly what's displayed.
   const [renderedSvg, setRenderedSvg] = useState<string | null>(null)
 
-  // Pan/zoom: fit the diagram to the viewport on first render and on Reset.
+  // Pan/zoom: fit the diagram to the viewport on first render, on Reset, and
+  // whenever the Elements selection changes its size (issue #33).
   const transformRef = useRef<ReactZoomPanPinchRef>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
-  const hasFitRef = useRef(false)
+  // True when a fit is owed — armed on first render and on each selection change,
+  // consumed once the resulting SVG has rendered.
+  const refitPendingRef = useRef(true)
 
   const fitView = useCallback(() => {
     const api = transformRef.current
@@ -72,12 +71,21 @@ export function ContentModelTool(): React.JSX.Element {
     api.zoomToElement(svg as HTMLElement, undefined, 0)
   }, [])
 
-  // Fit once when the diagram first renders (a frame later, so the viewport is
-  // laid out). Subsequent re-renders (filtering, theme) keep the user's view;
+  // Arm a re-fit whenever the Elements selection changes the diagram, so the
+  // user doesn't have to hit Reset after every adjustment (issue #33). The new
+  // diagram renders asynchronously, so we only set the flag here and perform the
+  // fit once its SVG has landed (below).
+  useEffect(() => {
+    refitPendingRef.current = true
+  }, [selection])
+
+  // Fit when a pending re-fit's new SVG has rendered (a frame later, so the
+  // viewport is laid out): the first render and every selection change. Theme
+  // toggles and user pan/zoom don't arm the flag, so they keep the current view;
   // Reset re-fits on demand.
   useEffect(() => {
-    if (!renderedSvg || hasFitRef.current) return undefined
-    hasFitRef.current = true
+    if (!renderedSvg || !refitPendingRef.current) return undefined
+    refitPendingRef.current = false
     const id = requestAnimationFrame(fitView)
     return () => cancelAnimationFrame(id)
   }, [renderedSvg, fitView])
@@ -86,6 +94,13 @@ export function ContentModelTool(): React.JSX.Element {
   const mermaid =
     model && resolved ? renderDiagram(model, {...resolved, theme: diagramTheme}) : null
   const orphans = model && selection ? orphanObjects(model, selection) : []
+
+  // maxScale grows with how many classes are actually rendered (post-filter), so
+  // large diagrams keep enough zoom-in headroom to read a class while small ones
+  // don't zoom in to unreasonable closeness (issue #24).
+  const visibleClassCount =
+    model && resolved ? model.classes.filter((c) => !resolved.hidden.has(c.name)).length : 0
+  const maxScale = maxScaleFor(visibleClassCount)
 
   return (
     <Flex direction="column" height="fill">
@@ -135,7 +150,7 @@ export function ContentModelTool(): React.JSX.Element {
               flex={1}
               style={{position: 'relative', overflow: 'hidden', minHeight: 0}}
             >
-              <TransformWrapper ref={transformRef} minScale={MIN_SCALE} maxScale={MAX_SCALE}>
+              <TransformWrapper ref={transformRef} minScale={MIN_SCALE} maxScale={maxScale}>
                 {({zoomIn, zoomOut}) => (
                   <>
                     <ZoomControls
