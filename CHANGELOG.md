@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.4.0...v0.5.0) (2026-06-26)
+
+### Features
+
+* adaptive max zoom and auto-refit on element changes ([d5d764b](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/d5d764bcc8de895f05d0e93f476bf3288d701452)), closes [#24](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/24) [#33](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/33) [#33](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/33)
+
 ## [0.4.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.3.4...v0.4.0) (2026-06-25)
 
 ### Features
