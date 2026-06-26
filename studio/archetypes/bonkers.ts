@@ -1,9 +1,14 @@
 import {defineArrayMember, defineField, defineType, type SchemaTypeDefinition} from 'sanity'
 
 /**
- * Synthetic schema for the dev Studio. It is not meant to model anything real —
- * its job is to exercise every shape the Mermaid content-model diagram cares
- * about, so the plugin can be developed and eyeballed against it:
+ * The "bonkers" / kitchen-sink archetype (issue #19).
+ *
+ * It is not meant to model anything real — its job is to deliberately exercise
+ * every shape the Mermaid content-model diagram cares about, so the plugin can
+ * be developed and eyeballed against it. This array is the single source of
+ * truth shared by the bonkers dev-Studio workspace (see `archetypes/index.ts`)
+ * and the bonkers golden-Mermaid test, so the gallery and the fixtures cannot
+ * drift. The shapes it covers:
  *
  * - documents (`article`, `author`) and the plugin-contributed `skosConcept`
  *   type (from sanity-plugin-taxonomy-manager) — the headline feature: types
@@ -54,6 +59,16 @@ import {defineArrayMember, defineField, defineType, type SchemaTypeDefinition} f
  *   nothing, so "Hide Orphan Objects" has something to act on and the
  *   unreferenced-object warning (issue #30) has something to flag
  * - validation rules so the probe has real cardinality to recover
+ * - primitives not otherwise exercised (issue #19): a `datetime` leaf
+ *   (`article.publishedAt` — `date`/`datetime` share the `datetime` label) and
+ *   a bare `file` leaf (`article.attachment` — `file` follows `image`, whose
+ *   class-promotion path is already covered by the image cases above)
+ * - an explicit `Rule.custom()` (`article.readingTime`) → the `custom`
+ *   cardinality marker via the `hasCustom` probe path (distinct from the value
+ *   constraints on `seo`, which trip the same marker a different way)
+ * - a mutual A↔B circular reference (issue #19): `author.featuredArticle` →
+ *   `article` closes a cycle with `article.author` → `author`, distinct from
+ *   the `article.relatedArticles` self-reference
  */
 
 const author = defineType({
@@ -64,6 +79,10 @@ const author = defineType({
     defineField({name: 'name', type: 'string', validation: (rule) => rule.required()}),
     defineField({name: 'bio', type: 'array', of: [defineArrayMember({type: 'block'})]}),
     defineField({name: 'avatar', type: 'image'}),
+    // Mutual circular reference (issue #19): author → article closes a cycle
+    // with article.author → author, distinct from article.relatedArticles'
+    // self-reference. The walker must resolve cycles without infinite recursion.
+    defineField({name: 'featuredArticle', type: 'reference', to: [{type: 'article'}]}),
     // Two inline objects with an identical shape (issue #29): `homeAddress` and
     // `workAddress` both become inline classes with the same `{street, city}`
     // fields. The walker flags them in Potential Issues — they likely want to be
@@ -214,6 +233,23 @@ const article = defineType({
   fields: [
     defineField({name: 'title', type: 'string', validation: (rule) => rule.required()}),
     defineField({name: 'slug', type: 'slug', options: {source: 'title'}}),
+    // Primitives not otherwise exercised (issue #19): a datetime leaf (date and
+    // datetime both collapse to the `datetime` label) and a bare `file` leaf
+    // (file follows image; class promotion shares the image path, already
+    // covered by coverImage/heroImage, so a bare leaf suffices here).
+    defineField({name: 'publishedAt', type: 'datetime'}),
+    defineField({name: 'attachment', type: 'file'}),
+    // Explicit Rule.custom() → the `custom` cardinality marker via the hasCustom
+    // probe path. (seo's max() also trips the marker, but as a value constraint;
+    // this documents the canonical custom-validator case.)
+    defineField({
+      name: 'readingTime',
+      type: 'number',
+      validation: (rule) =>
+        rule.custom((value) =>
+          value === undefined || value >= 0 ? true : 'Reading time cannot be negative',
+        ),
+    }),
     // Named image type used as a field → composition edge to the HeroImage class.
     defineField({name: 'heroImage', type: 'heroImage'}),
     // Inline image carrying its own sub-fields → promoted to an inline class
@@ -344,7 +380,7 @@ const page = defineType({
   ],
 })
 
-export const schemaTypes: SchemaTypeDefinition[] = [
+export const bonkers: SchemaTypeDefinition[] = [
   article,
   page,
   author,
