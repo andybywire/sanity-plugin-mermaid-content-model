@@ -46,10 +46,11 @@ The real compile is the whole point. The unit suites cast a `fakeSchema` (see [`
 
 ### Why the tests live in `studio/`, not `src/`
 
-The `knowledgeBase` and `bonkers` tests compose the **real** dev plugins (`sanity-plugin-taxonomy-manager`, `@sanity/code-input`) — reading each plugin's `schema.types` and feeding them to `createSchema` exactly as the workspace does (plugin-aware composition is the whole reason this tool runs in-Studio). That's distinct from the synthetic stand-ins above, which reproduce patterns from plugins we deliberately _don't_ take on as deps; taxonomy-manager and code-input are already studio dependencies, so the archetypes exercise them for real. Those plugins resolve only from `studio/node_modules`, so the tests must live under `studio/`. Consequences worth knowing:
+The `knowledgeBase` and `bonkers` tests compose the **real** dev plugins (`sanity-plugin-taxonomy-manager`, `@sanity/code-input`) — reading each plugin's `schema.types` and feeding them to `createSchema` exactly as the workspace does (plugin-aware composition is the whole reason this tool runs in-Studio). That's distinct from the synthetic stand-ins above, which reproduce patterns from plugins we deliberately _don't_ take on as deps. The tests are co-located with the archetype arrays under `studio/archetypes/` — the arrays have to live there (the workspaces register them), and co-location keeps the single source of truth. Consequences worth knowing:
 
 - `vitest.config.ts`'s `include` is widened to `studio/archetypes/**/*.test.ts`, so the archetype tests **do** run in the `pnpm test` gate.
 - They import the pure pipeline by a relative `../../src/...` path — not the bare package specifier, which Vite resolves to the stale `dist/`.
+- **The real plugins are declared as root `devDependencies`, not only studio deps.** CI installs with `pnpm install --frozen-lockfile --filter=!studio`, so `studio/node_modules` doesn't exist there — the plugins must resolve from the **root** `node_modules` where `vitest` runs. Without the root devDep, the plugin-composing tests pass locally (where `studio/node_modules` is populated) but fail to load in CI. Keep the root devDep version in lockstep with the studio dep so the test composes the same plugin the gallery shows.
 - They are typechecked by `tsc -p studio/tsconfig.json` (studio's own gate) and, like all of `studio/`, are **ignored by eslint**.
 
 ## TDD practices
