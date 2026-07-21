@@ -5,6 +5,17 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.5.0...v1.0.0) (2026-07-21)
+
+### ⚠ BREAKING CHANGES
+
+* 1.0 stabilizes the public API. Future breaking changes
+to the plugin export or Mermaid export contract will bump the major version.
+
+### Miscellaneous Chores
+
+* release 1.0 ([4af42a4](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/4af42a4d18aab4a6d19c530e14c8e768baa48e7d))
+
 ## [0.5.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.4.0...v0.5.0) (2026-06-26)
 
 ### Features
