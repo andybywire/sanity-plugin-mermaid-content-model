@@ -1,6 +1,6 @@
 # ADR 0003 — Criteria for the v1.0 release
 
-**Status:** accepted (criteria); execution deliberately open-ended (see below)
+**Status:** accepted; gates met — **v1.0 released 2026-07-21** (see *Outcome* below)
 
 **Relates to:** [0002](0002-content-model-plugin-architecture.md) — the `@internal` `_original` seam that one of these gates also hardens; [issue #19](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/19) — the archetype-schema test harness.
 
@@ -32,3 +32,13 @@ The tool's risk profile shapes what 1.0 should *mean*. This is a **read-only vis
 - Until the gates hold, the line **stays `0.x`.** Peer-range, fix, and feature work release as normal patches/minors via semantic-release — nothing is held back waiting for 1.0.
 - Because gate 3 is feedback-gated, **there is no committed 1.0 date**, and that is intentional — a "non-issue" tracking ticket would only invite a false deadline.
 - Revisit this ADR if the value proposition shifts (e.g. the tool gains a data-mutating capability, which would raise the correctness bar materially).
+
+## Outcome — v1.0 shipped (2026-07-21)
+
+The three gates were judged met and 1.0 was cut deliberately:
+
+1. **Correctness breadth** — the archetype-schema golden-Mermaid harness ([#19](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/19)) landed via [#40](https://github.com/andybywire/sanity-plugin-mermaid-content-model/pull/40), including the real-compiled path through `readSchemaSource` that hardens the `@internal` `_original.types` seam.
+2. **Feature freeze + API stability** — the [v1.0 Release milestone](https://github.com/andybywire/sanity-plugin-mermaid-content-model/milestones) closed with its full set of blocking issues resolved (0 open / 12 closed); the `mermaidContentModel()` options surface is frozen under semver-major discipline.
+3. **Real-world validation** — primary validation was provided by use on several author-owned real-world studios. Outside user feedback has not yet been received, but the plugin has been determined to work as intended for the proposed use cases. Studio maintainer feedback will be accounted for and incorporated into future releases over time. 
+
+Consistent with the decision above, 1.0 was **not** triggered by a feature — it was declared once the gates held. semantic-release requires a breaking-change indicator to leave the `0.x` line, so the release was carried by a single `chore!: release 1.0` commit whose `BREAKING CHANGE:` footer marks the API as stable. 
