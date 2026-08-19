@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.1](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v1.0.0...v1.0.1) (2026-08-19)
+
+### Bug Fixes
+
+* render self-referential relations with mermaid's unified class renderer ([e563226](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/e5632267204efd8af5d41d0e96c29e3eed574e21)), closes [#46](https://github.com/andybywire/sanity-plugin-mermaid-content-model/issues/46)
+
 ## [1.0.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v0.5.0...v1.0.0) (2026-07-21)
 
 ### ⚠ BREAKING CHANGES
