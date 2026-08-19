@@ -18,7 +18,9 @@ const compiled = createSchema({name: 'ecommerce', types: ecommerce})
 const {model, warnings} = modelFor(compiled)
 
 if (!model) {
-  throw new Error(`ecommerce schema failed to read back via _original.types: ${warnings.join('; ')}`)
+  throw new Error(
+    `ecommerce schema failed to read back via _original.types: ${warnings.join('; ')}`,
+  )
 }
 
 describe('ecommerce archetype (real compiled schema)', () => {
@@ -44,7 +46,11 @@ describe('ecommerce archetype (real compiled schema)', () => {
       expect.objectContaining({source: 'Product', target: 'Variant', relation: 'composition'}),
     )
     expect(model.edges).toContainEqual(
-      expect.objectContaining({source: 'Variant', target: 'VariantOption', relation: 'composition'}),
+      expect.objectContaining({
+        source: 'Variant',
+        target: 'VariantOption',
+        relation: 'composition',
+      }),
     )
   })
 

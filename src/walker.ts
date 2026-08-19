@@ -14,14 +14,7 @@ import {probe} from './probe'
 
 export type Stereotype = 'document' | 'object'
 export type PrimitiveKind =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'url'
-  | 'datetime'
-  | 'geopoint'
-  | 'image'
-  | 'file'
+  'string' | 'number' | 'boolean' | 'url' | 'datetime' | 'geopoint' | 'image' | 'file'
 export type Relation = 'composition' | 'reference'
 
 /**

@@ -20,12 +20,7 @@ export default defineConfig(
     basePath: `/${archetype.name}`,
     projectId,
     dataset,
-    plugins: [
-      mermaidContentModel(),
-      structureTool(),
-      visionTool(),
-      ...(archetype.plugins ?? []),
-    ],
+    plugins: [mermaidContentModel(), structureTool(), visionTool(), ...(archetype.plugins ?? [])],
     schema: {
       types: archetype.types,
     },
