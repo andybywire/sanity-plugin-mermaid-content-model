@@ -18,7 +18,9 @@ const compiled = createSchema({name: 'editorial', types: editorial})
 const {model, warnings} = modelFor(compiled)
 
 if (!model) {
-  throw new Error(`editorial schema failed to read back via _original.types: ${warnings.join('; ')}`)
+  throw new Error(
+    `editorial schema failed to read back via _original.types: ${warnings.join('; ')}`,
+  )
 }
 
 describe('editorial archetype (real compiled schema)', () => {
