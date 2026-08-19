@@ -1,4 +1,4 @@
-import {cleanup, fireEvent, screen} from '@testing-library/react'
+import {cleanup, fireEvent, screen, waitFor} from '@testing-library/react'
 import {afterEach, describe, expect, it} from 'vitest'
 
 import {renderWithUi} from '../test/renderWithUi'
@@ -20,7 +20,9 @@ describe('WarningsMenu', () => {
   it('renders the Warnings button, with the popover closed initially', () => {
     renderWithUi(<WarningsMenu warnings={warnings} />)
     expect(screen.getByRole('button', {name: /warnings/i})).toBeInTheDocument()
-    expect(screen.queryByText(warnings[0]!)).not.toBeInTheDocument()
+    // @sanity/ui v4 keeps a closed Popover mounted (React <Activity>) to preserve
+    // its state, so "closed" is a visibility assertion, not an absence one.
+    expect(screen.getByText(warnings[0]!)).not.toBeVisible()
   })
 
   it('opens the popover on click, listing each warning message', () => {
@@ -30,12 +32,15 @@ describe('WarningsMenu', () => {
     expect(screen.getByText(warnings[1]!)).toBeInTheDocument()
   })
 
-  it('closes the popover when the button is clicked again', () => {
+  it('closes the popover when the button is clicked again', async () => {
     renderWithUi(<WarningsMenu warnings={warnings} />)
     const button = screen.getByRole('button', {name: /warnings/i})
     fireEvent.click(button)
-    expect(screen.getByText(warnings[0]!)).toBeInTheDocument()
+    expect(screen.getByText(warnings[0]!)).toBeVisible()
     fireEvent.click(button)
-    expect(screen.queryByText(warnings[0]!)).not.toBeInTheDocument()
+    // In @sanity/ui v4 a Popover stays mounted when closed and hides *asynchronously*
+    // (it runs an exit transition first), so this has to be awaited — unlike the
+    // initial closed state, which is hidden from the first render.
+    await waitFor(() => expect(screen.getByText(warnings[0]!)).not.toBeVisible())
   })
 })

@@ -83,6 +83,25 @@ If the second command prints those names, the plugin is being served **v3** no m
 
 Worth checking beyond the happy path, since a mixed tree only fails where contexts are actually crossed: exercise every `Popover`, `Tooltip`, and `useToast` surface (menus opened, toasts fired), not just the components that render on load.
 
+### Clear the optimizer cache after changing UI majors
+
+Vite's prebundle cache **survives dependency changes**, and it re-optimizes *incrementally* — so switching majors mid-session leaves a mixed tree that looks like a passing test. Observed here immediately after moving the imports to subpaths:
+
+```
+@sanity/ui          -> 3.2.0     <- stale entry, kept from the previous optimize run
+@sanity/ui/popover  -> 4.0.4     <- newly discovered
+@sanity/ui/toast    -> 4.0.4
+@sanity/ui/tooltip  -> 4.0.4
+```
+
+The optimizer added the newly-discovered subpath entries but never re-resolved the existing bare one, so a single component was pulling `Card`/`Text`/`useRootTheme` from v3 and `Popover`/`Tooltip`/`useToast` from v4. It didn't crash, which is precisely the problem — it's not the state the code declares, and no conclusion drawn from it is valid.
+
+```bash
+rm -rf studio/node_modules/.sanity/vite && pnpm dev
+```
+
+Do this after **any** change to which `@sanity/ui` major resolves, and confirm with the metadata check above before trusting what you see. Restarting the dev server alone is not enough — the cache lives on disk and is reused across restarts.
+
 ## Symbols that moved to subpath entry points
 
 v4 moved components with heavy dependencies out of the root entry, so importing `@sanity/ui` no longer pulls in `@floating-ui/react-dom`, `motion`, or `react-refractor`.

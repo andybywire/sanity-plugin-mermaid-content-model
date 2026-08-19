@@ -1,5 +1,6 @@
 import {ClipboardImageIcon} from '@sanity/icons'
-import {Button, useToast} from '@sanity/ui'
+import {Button} from '@sanity/ui'
+import {useToast} from '@sanity/ui/toast'
 import {useCallback} from 'react'
 
 import {svgToPngBlob} from './svg-to-png'

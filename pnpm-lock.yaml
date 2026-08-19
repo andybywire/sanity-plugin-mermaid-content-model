@@ -11,9 +11,6 @@ importers:
       '@sanity/icons':
         specifier: ^3.7.4
         version: 3.7.4(react@19.2.8)
-      '@sanity/ui':
-        specifier: ^3.2.0
-        version: 3.2.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.8(react@19.2.8))(react-is@19.2.8)(react@19.2.8)(styled-components@6.5.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       mermaid:
         specifier: ^11.17.0
         version: 11.17.0
@@ -54,6 +51,9 @@ importers:
       '@sanity/types':
         specifier: ^6.0.0
         version: 6.0.0(@types/react@19.2.18)
+      '@sanity/ui':
+        specifier: ^4.0.4
+        version: 4.0.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(styled-components@6.5.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.9.1

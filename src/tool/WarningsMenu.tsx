@@ -1,5 +1,7 @@
 import {WarningOutlineIcon} from '@sanity/icons'
-import {Box, Button, Flex, Popover, Stack, Text, Tooltip, useClickOutsideEvent} from '@sanity/ui'
+import {Box, Button, Flex, Stack, Text, useClickOutsideEvent} from '@sanity/ui'
+import {Popover} from '@sanity/ui/popover'
+import {Tooltip} from '@sanity/ui/tooltip'
 import {useState} from 'react'
 
 // Roughly 72 characters at Text size={1} — the readable line length the issue
