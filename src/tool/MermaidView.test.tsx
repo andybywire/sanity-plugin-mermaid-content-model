@@ -71,4 +71,19 @@ describe('MermaidView', () => {
     // foreignObject (HTML) labels taint a canvas and block Copy PNG's toBlob().
     expect(initializeMock).toHaveBeenCalledWith(expect.objectContaining({htmlLabels: false}))
   })
+
+  it('pins the unified class renderer, which draws self-referential relations correctly', async () => {
+    renderMock.mockResolvedValue({svg: '<svg data-testid="diagram" />'})
+    render(<MermaidView code="classDiagram" />)
+    await screen.findByTestId('diagram')
+    // 'dagre-wrapper' is the unified (v2) renderer, mermaid 11.17's new default.
+    // The legacy 'dagre-d3' renderer draws a self-reference (e.g. an `article`
+    // with `relatedArticles: article`) as three broken paths that trail off into
+    // empty space instead of looping back to the class. Pinned rather than left
+    // to the installed version's default, because our caret range lets consumers
+    // resolve any 11.x — in either direction.
+    expect(initializeMock).toHaveBeenCalledWith(
+      expect.objectContaining({class: expect.objectContaining({defaultRenderer: 'dagre-wrapper'})}),
+    )
+  })
 })

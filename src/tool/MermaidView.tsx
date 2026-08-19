@@ -68,10 +68,28 @@ export function MermaidView({
       startOnLoad: false,
       theme: colorScheme === 'dark' ? 'dark' : 'default',
       htmlLabels: false,
-      // Emit explicit px width/height (from the viewBox) rather than width:100%
-      // /max-width, so the SVG has a stable intrinsic size — the pan/zoom
-      // fit-to-view math in ContentModelTool depends on it.
-      class: {useMaxWidth: false},
+      class: {
+        // Asks for explicit px width/height (from the viewBox) rather than
+        // width:100% + max-width, for a stable intrinsic size. NB mermaid
+        // currently ignores this for classDiagram — verified identical output
+        // with it true and false, on both 11.15 and 11.17 — so the rendered SVG
+        // carries width="100%". Kept as a declaration of intent; fit-to-view
+        // doesn't depend on it, since zoomToElement measures the laid-out box.
+        useMaxWidth: false,
+        // The unified (v2) renderer, which mermaid 11.17 made the default for
+        // classDiagram. It is pinned rather than inherited because our `mermaid`
+        // dependency is a caret range — consumers resolve any 11.x, and the
+        // renderer governs how relations are drawn.
+        //
+        // The legacy 'dagre-d3' renderer draws a self-referential relation (an
+        // `article` with `relatedArticles: article`, say) as three separate
+        // paths that trail off into empty space rather than looping back to the
+        // class, so the diagram shows edges going nowhere. The unified renderer
+        // draws a proper self-loop. Everything else is unchanged between the
+        // two: identical viewBox, identical classDef fills, and no
+        // <foreignObject> either way (which Copy PNG's canvas depends on).
+        defaultRenderer: 'dagre-wrapper',
+      },
     })
     mermaid
       .render(renderId, code, measureRef.current ?? undefined)

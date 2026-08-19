@@ -38,6 +38,18 @@ Two rejected alternatives:
 
 `_original` is tagged `@internal`, so the adapter **guards** the access and degrades gracefully (a missing/non-array `_original.types` yields an empty result + a human-readable warning, never a crash or silent blank). The dependency is isolated to that one ~4-line function. Full risk analysis in [ADR 0002](decisions/0002-content-model-plugin-architecture.md). Re-verify the access when widening the `sanity` peer range.
 
+## Rendering (the DOM seam)
+
+`MermaidView` re-runs `mermaid.initialize()` per render (it's just config) before calling `mermaid.render()`. Three of those options are load-bearing — changing them changes correctness, not taste:
+
+- **`theme`** — `'dark'` / `'default'`, tracking Studio's resolved colour scheme. Sets the bg/edge/label base; the class fills come from our own `classDef` lines.
+- **`htmlLabels: false`** — renders labels as SVG `<text>` rather than HTML in a `<foreignObject>`. A `foreignObject` **taints a `<canvas>`**, which would break Copy PNG's `toBlob()`. For our short labels the visual result is the same.
+- **`class.defaultRenderer: 'dagre-wrapper'`** — the **unified (v2) renderer**, pinned deliberately. The legacy `'dagre-d3'` renderer draws a self-referential relation (`article.relatedArticles → article`) as three separate paths that trail off into empty space instead of looping back to the class — visible dangling edges. Self-references are common in real models (parent categories, related products, prerequisites, SKOS `broader`/`related`), so this is not an edge case: three of the four dev archetypes have them.
+
+  Mermaid 11.17 made `dagre-wrapper` the default, but our `mermaid` dependency is a **caret range** — consumers resolve any 11.x — so the choice is pinned rather than inherited, and holds if the default moves again in either direction. Otherwise the two renderers are equivalent: identical `viewBox`, identical `classDef` fills, no `foreignObject` either way. **Don't drop the pin as part of a version bump** — it's a correctness guardrail, covered by a test in `MermaidView.test.tsx`.
+
+**Known renderer limitation:** Mermaid draws only **one self-edge per class**. When a class has several self-references, the parallel edges collapse and the last label wins — so a real relationship is silently absent from the diagram (issue #46). Renderer-independent; parallel edges between *different* classes render fine.
+
 ## The mapping contract (Sanity → Mermaid `classDiagram`)
 
 ### Stereotypes & styling
