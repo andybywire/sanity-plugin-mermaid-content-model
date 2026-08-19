@@ -9,14 +9,15 @@
     "start": "sanity start"
   },
   "dependencies": {
-    "@sanity/code-input": "^7.1.6",
-    "@sanity/vision": "^6.0.0",
+    "@sanity/code-input": "^7.3.5",
+    "@sanity/ui": "^4.0.4",
+    "@sanity/vision": "^6.10.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-is": "^19.2.8",
-    "sanity": "^6.0.0",
+    "sanity": "^6.10.1",
     "sanity-plugin-mermaid-content-model": "workspace:*",
-    "sanity-plugin-taxonomy-manager": "^4.7.0",
+    "sanity-plugin-taxonomy-manager": "^4.7.2",
     "styled-components": "^6.5.3"
   },
   "devDependencies": {
