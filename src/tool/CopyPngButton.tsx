@@ -1,4 +1,4 @@
-import {ClipboardImageIcon} from '@sanity/icons'
+import {ClipboardImageIcon} from '@sanity/icons/ClipboardImage'
 import {Button} from '@sanity/ui'
 import {useToast} from '@sanity/ui/toast'
 import {useCallback} from 'react'

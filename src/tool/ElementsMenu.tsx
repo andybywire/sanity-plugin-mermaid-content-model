@@ -1,4 +1,4 @@
-import {ControlsIcon} from '@sanity/icons'
+import {ControlsIcon} from '@sanity/icons/Controls'
 import {Box, Button, Flex, Stack, Switch, Text, useClickOutsideEvent} from '@sanity/ui'
 import {Popover} from '@sanity/ui/popover'
 import {Tooltip} from '@sanity/ui/tooltip'

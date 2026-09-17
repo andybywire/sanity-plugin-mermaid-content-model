@@ -1,4 +1,6 @@
-import {AddIcon, RemoveIcon, ResetIcon} from '@sanity/icons'
+import {AddIcon} from '@sanity/icons/Add'
+import {RemoveIcon} from '@sanity/icons/Remove'
+import {ResetIcon} from '@sanity/icons/Reset'
 import {Button, Card, Flex} from '@sanity/ui'
 
 export interface ZoomControlsProps {
