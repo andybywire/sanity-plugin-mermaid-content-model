@@ -21,7 +21,13 @@ You probably created a visual representation of your content model at some point
 
 ## Installation
 
-> Compatible with **Sanity Studio v5 and v6** (React 19).
+> **Requires Sanity Studio 6.9.2 or later**, React 19.2+, and Node 22.12+.
+>
+> 6.9.2 is the Studio release that moved to [Sanity UI](https://www.sanity.io/ui) v4, which this plugin takes from the host Studio rather than bundling. Studios on Sanity v5, or on 6.0–6.9.1, ship Sanity UI v3 — use the **1.x** line there:
+>
+> ```
+> npm install sanity-plugin-mermaid-content-model@^1
+> ```
 
 ```
 npm install sanity-plugin-mermaid-content-model
