@@ -5,6 +5,26 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v1.0.1...v2.0.0) (2026-09-18)
+
+### ⚠ BREAKING CHANGES
+
+* requires Sanity 6.9.2 or later, React 19.2 or later, and
+Node 22.12 or later. Studios on Sanity v5 or 6.0 through 6.9.1 ship
+@sanity/ui v3 and should stay on the 1.x line.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+* @sanity/ui v4 is now required and must be provided by the
+host Studio, which means Studio 6.10 or later. Studios on Sanity v5 or
+Studio 6.0 through 6.9 ship UI v3 and should stay on the 1.x line.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+### Features
+
+* raise floors to Sanity 6.9.2 and move to the UI v4 ecosystem ([483e527](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/483e527cb9839d6237896bae8c279d2ee1f5ed07))
+* require Sanity UI v4, provided by the host Studio ([f9da364](https://github.com/andybywire/sanity-plugin-mermaid-content-model/commit/f9da36468b9496f1f6e6fbe26d6337ff900ab2b2))
+
 ## [1.0.1](https://github.com/andybywire/sanity-plugin-mermaid-content-model/compare/v1.0.0...v1.0.1) (2026-08-19)
 
 ### Bug Fixes
