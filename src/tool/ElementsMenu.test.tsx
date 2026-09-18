@@ -20,7 +20,9 @@ describe('ElementsMenu', () => {
   it('renders the Elements button, with the menu closed initially', () => {
     renderWithUi(<ElementsMenu selection={selection()} groups={groups} onChange={vi.fn()} />)
     expect(screen.getByRole('button', {name: /elements/i})).toBeInTheDocument()
-    expect(screen.queryByText('Inline objects')).not.toBeInTheDocument()
+    // @sanity/ui v4 keeps a closed Popover mounted (React <Activity>), so assert
+    // the menu contents are hidden rather than absent.
+    expect(screen.getByText('Inline objects')).not.toBeVisible()
   })
 
   it('opens the menu on click, listing categories and grouped classes', () => {

@@ -1,4 +1,4 @@
-import {SchemaIcon} from '@sanity/icons'
+import {SchemaIcon} from '@sanity/icons/Schema'
 import {definePlugin} from 'sanity'
 
 import {ContentModelTool} from './tool/ContentModelTool'

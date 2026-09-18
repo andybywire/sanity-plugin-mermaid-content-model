@@ -99,15 +99,38 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter=!studio
       - run: pnpm test
 
+  install:
+    needs: build
+    # Skippable alongside the test matrix when fast-tracking a release.
+    if: github.event.inputs.test != 'false'
+    runs-on: ubuntu-latest
+    name: Consumer install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          node-version: lts/*
+      - run: pnpm install --frozen-lockfile --filter=!studio
+      # Packs the plugin and npm-installs it into a throwaway Studio: verifies a
+      # real consumer install resolves cleanly and ends up with a single shared
+      # @sanity/ui. This is the check a plugin dev Studio structurally cannot
+      # make, because pnpm workspaces and Vite's dep-optimizer both collapse a
+      # duplicate major into one copy. See docs/sanity-ui-v4-migration.md.
+      - run: pnpm run test:studio-install
+
   release:
     permissions:
       contents: write # publish a GitHub release + push the changelog/version commit
       issues: write # comment on released issues
       pull-requests: write # comment on released PRs
       id-token: write # OIDC trusted publishing to npm (tokenless) + provenance
-    needs: [build, test]
-    # Run on push to main (after build/test pass) or a manual dispatch with release=true.
-    if: always() && needs.build.result != 'failure' && needs.test.result != 'failure' && needs.test.result != 'cancelled' && (github.event_name == 'push' || github.event.inputs.release == 'true')
+    needs: [build, test, install]
+    # Run on push to main (after build/test/install pass) or a manual dispatch with
+    # release=true. A skipped job reports 'skipped', not 'failure', so fast-tracking
+    # still works.
+    if: always() && needs.build.result != 'failure' && needs.test.result != 'failure' && needs.test.result != 'cancelled' && needs.install.result != 'failure' && needs.install.result != 'cancelled' && (github.event_name == 'push' || github.event.inputs.release == 'true')
     runs-on: ubuntu-latest
     name: Semantic release
     steps:

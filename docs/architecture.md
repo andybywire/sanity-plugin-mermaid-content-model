@@ -36,7 +36,7 @@ Two rejected alternatives:
 - **Compiled `get()` / `getTypeNames()` (public API)** — sees all plugin types, but validation is already resolved to specs, so the probe can't introspect it and cardinality degrades.
 - **Importing `schemaTypes/index.ts` directly (the CLI's path)** — raw + validation intact, but blind to plugin-contributed types.
 
-`_original` is tagged `@internal`, so the adapter **guards** the access and degrades gracefully (a missing/non-array `_original.types` yields an empty result + a human-readable warning, never a crash or silent blank). The dependency is isolated to that one ~4-line function. Full risk analysis in [ADR 0002](decisions/0002-content-model-plugin-architecture.md). Re-verify the access when widening the `sanity` peer range.
+`_original` is tagged `@internal`, so the adapter **guards** the access and degrades gracefully (a missing/non-array `_original.types` yields an empty result + a human-readable warning, never a crash or silent blank). The dependency is isolated to that one ~4-line function. Full risk analysis in [ADR 0002](decisions/0002-content-model-plugin-architecture.md). Re-verify the access whenever the `sanity` peer range **moves in either direction** — narrowing it changes which release the seam is actually exercised against, not just which ones we claim. The archetype tests are that verification: they compile real schemas through `createSchema`, so whichever `sanity` they resolve is the version the seam is proven against. Last verified at **6.15.0** (the 2.0 floor move, [ADR 0004](decisions/0004-sanity-ui-v4-support-boundary.md)).
 
 ## Rendering (the DOM seam)
 

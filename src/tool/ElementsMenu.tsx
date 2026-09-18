@@ -1,15 +1,7 @@
-import {ControlsIcon} from '@sanity/icons'
-import {
-  Box,
-  Button,
-  Flex,
-  Popover,
-  Stack,
-  Switch,
-  Text,
-  Tooltip,
-  useClickOutsideEvent,
-} from '@sanity/ui'
+import {ControlsIcon} from '@sanity/icons/Controls'
+import {Box, Button, Flex, Stack, Switch, Text, useClickOutsideEvent} from '@sanity/ui'
+import {Popover} from '@sanity/ui/popover'
+import {Tooltip} from '@sanity/ui/tooltip'
 import {useState} from 'react'
 
 import type {ElementGroups, ElementsSelection} from '../elements'

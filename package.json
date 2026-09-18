@@ -51,9 +51,10 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "react": "^18 || ^19",
-    "react-dom": "^18 || ^19",
-    "sanity": "^5 || ^6"
+    "@sanity/ui": "^4",
+    "react": "^19.2",
+    "react-dom": "^19.2",
+    "sanity": "^6.9.2"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
@@ -62,11 +63,12 @@
     "@eslint/eslintrc": "^3.3.6",
     "@eslint/js": "^9.0.0",
     "@sanity/browserslist-config": "^1.0.5",
-    "@sanity/code-input": "^7.1.6",
+    "@sanity/code-input": "^7.3.8",
     "@sanity/eslint-config-studio": "^6.0.0",
     "@sanity/pkg-utils": "^10",
     "@sanity/semantic-release-preset": "^6.0.0",
-    "@sanity/types": "^6.0.0",
+    "@sanity/types": "^6.15.0",
+    "@sanity/ui": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
@@ -87,19 +89,18 @@
     "prettier-plugin-packagejson": "^3.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "sanity": "^6.0.0",
-    "sanity-plugin-taxonomy-manager": "^4.7.0",
+    "sanity": "^6.15.0",
+    "sanity-plugin-taxonomy-manager": "^6.0.0",
     "typescript": "^5.9.3",
     "vitest": "^2.1.0"
   },
   "dependencies": {
-    "@sanity/icons": "^3.7.4",
-    "@sanity/ui": "^3.2.0",
+    "@sanity/icons": "^5.2.2",
     "mermaid": "^11.17.0",
     "react-zoom-pan-pinch": "^4.0.4"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.12"
   },
   "publishConfig": {
     "exports": {
