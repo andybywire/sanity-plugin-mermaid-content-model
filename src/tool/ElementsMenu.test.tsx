@@ -20,9 +20,10 @@ describe('ElementsMenu', () => {
   it('renders the Elements button, with the menu closed initially', () => {
     renderWithUi(<ElementsMenu selection={selection()} groups={groups} onChange={vi.fn()} />)
     expect(screen.getByRole('button', {name: /elements/i})).toBeInTheDocument()
-    // @sanity/ui v4 keeps a closed Popover mounted (React <Activity>), so assert
-    // the menu contents are hidden rather than absent.
-    expect(screen.getByText('Inline objects')).not.toBeVisible()
+    // @sanity/ui <4.4 pre-renders a closed Popover's content hidden (React
+    // <Activity>); 4.4+ renders nothing until first open (sanity-io/ui#3119). A
+    // *ByRole query skips hidden elements, so this holds on every v4.
+    expect(screen.queryByRole('checkbox', {name: /inline objects/i})).not.toBeInTheDocument()
   })
 
   it('opens the menu on click, listing categories and grouped classes', () => {

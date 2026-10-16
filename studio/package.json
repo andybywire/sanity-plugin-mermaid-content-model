@@ -9,16 +9,16 @@
     "start": "sanity start"
   },
   "dependencies": {
-    "@sanity/code-input": "^7.3.8",
-    "@sanity/ui": "^4.2.1",
-    "@sanity/vision": "^6.15.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "react-is": "^19.3.0",
-    "sanity": "^6.15.0",
+    "@sanity/code-input": "^7.3.12",
+    "@sanity/ui": "^4.4.9",
+    "@sanity/vision": "^6.19.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-is": "^19.3.1",
+    "sanity": "^6.19.0",
     "sanity-plugin-mermaid-content-model": "workspace:*",
     "sanity-plugin-taxonomy-manager": "^6.0.0",
-    "styled-components": "^6.5.3"
+    "styled-components": "^6.6.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0"

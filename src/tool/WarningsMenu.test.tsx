@@ -20,9 +20,10 @@ describe('WarningsMenu', () => {
   it('renders the Warnings button, with the popover closed initially', () => {
     renderWithUi(<WarningsMenu warnings={warnings} />)
     expect(screen.getByRole('button', {name: /warnings/i})).toBeInTheDocument()
-    // @sanity/ui v4 keeps a closed Popover mounted (React <Activity>) to preserve
-    // its state, so "closed" is a visibility assertion, not an absence one.
-    expect(screen.getByText(warnings[0]!)).not.toBeVisible()
+    // @sanity/ui 4.4+ doesn't render a Popover's content until it first opens
+    // (sanity-io/ui#3119). Once opened, a closed popover stays mounted but hidden
+    // (React <Activity>) — that state is covered by the close test below.
+    expect(screen.queryByText(warnings[0]!)).not.toBeInTheDocument()
   })
 
   it('opens the popover on click, listing each warning message', () => {

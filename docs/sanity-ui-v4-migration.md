@@ -161,13 +161,24 @@ grep -rnE "\b(Popover|Tooltip|TooltipDelayGroupProvider|useTooltipDelayGroup|Toa
 - v4 is **ESM-only** (CommonJS consumers can still `require()` on supported Node).
 - The **application** must `import '@sanity/ui/styles.css'` once, beside where it renders `<ThemeProvider>`. A plugin should *not* import it — but a plugin's **test harness** that renders its own `ThemeProvider` may need it for components like `Spinner` and `SrOnly`. (Low stakes under jsdom, which doesn't apply CSS to assertions.)
 
-## Behaviour change that breaks tests
+## Behavior change that breaks tests
 
-Closed Popovers and Tooltips stay **DOM-mounted** in v4 (React `<Activity>`), preserving internal state. Existence assertions must become visibility assertions:
+v4 hides a closed `Popover` with React `<Activity>` (keeping it DOM-mounted, preserving internal state) — but *when* its content first renders changed mid-v4:
 
-```diff
-- expect(screen.queryByText('...')).not.toBeInTheDocument()
-+ expect(screen.queryByText('...')).not.toBeVisible()
+- **4.0–4.3:** every closed Popover pre-renders its content, mounted but hidden.
+- **4.4.0+** ([sanity-io/ui#3119](https://github.com/sanity-io/ui/pull/3119)): a Popover (and `MenuButton`, `MenuGroup`, `Autocomplete`, `Breadcrumbs`) renders nothing until it first opens; once opened, closing it keeps it mounted but hidden.
+
+So a "closed" assertion depends on whether the popover has ever opened:
+
+```ts
+// Never opened: hidden on <4.4, absent on 4.4+. A *ByRole query skips hidden
+// elements, so it holds on every v4.
+expect(screen.queryByRole('checkbox', {name: /label/i})).not.toBeInTheDocument()
+// …or, for content with no role, assert absence (4.4+ only):
+expect(screen.queryByText('...')).not.toBeInTheDocument()
+
+// Opened, then closed: mounted but hidden on every v4.
+await waitFor(() => expect(screen.getByText('...')).not.toBeVisible())
 ```
 
 ## pnpm traps
